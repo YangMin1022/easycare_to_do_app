@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'add_task.dart';
 import 'task_item.dart';
+import 'task_details.dart';
 import 'dart:math';
 
 void main() {
@@ -158,31 +159,11 @@ class SimpleOnboardingPage extends StatelessWidget {
   }
 }
 
-/* ========= Task model and demo sample data ========= */
-
-// class TaskItem {
-//   final String id;
-//   final String title;
-//   final String note;
-//   final DateTime due;
-//   final Duration? reminderBefore; // e.g., Duration(hours:1) or Duration(days:1)
-//   bool completed;
-
-//   TaskItem({
-//     required this.id,
-//     required this.title,
-//     required this.note,
-//     required this.due,
-//     this.reminderBefore,
-//     this.completed = false,
-//   });
-// }
-
 /* Demo data */
 final List<TaskItem> _demoTasks = [
-  TaskItem(id: '1', title: 'Take morning medication', note: 'With breakfast - 2 pills', due: DateTime(2025, 11, 25), reminderBefore: const Duration(hours: 1)),
-  TaskItem(id: '2', title: 'Call Dr. Smith for appointment', note: 'Schedule follow-up visit', due: DateTime(2025, 11, 27), reminderBefore: const Duration(days: 1)),
-  TaskItem(id: '3', title: 'Buy groceries', note: 'Milk, eggs, bread', due: DateTime(2025, 11, 28), reminderBefore: const Duration(days: 3)),
+  TaskItem(id: '1', title: 'Take morning medication', note: 'With breakfast - 2 pills', due: DateTime(2025, 11, 25), reminderBefore: const Duration(hours: 1), createdAt: DateTime.now(), updatedAt: DateTime.now()),
+  TaskItem(id: '2', title: 'Call Dr. Smith for appointment', note: 'Schedule follow-up visit', due: DateTime(2025, 11, 27), reminderBefore: const Duration(days: 1), createdAt: DateTime.now(), updatedAt: DateTime.now()),
+  TaskItem(id: '3', title: 'Buy groceries', note: 'Milk, eggs, bread', due: DateTime(2025, 11, 28), reminderBefore: const Duration(days: 3), createdAt: DateTime.now(), updatedAt: DateTime.now()),
 ];
 
 /* ========= Task List Home page ========= */
@@ -274,6 +255,42 @@ class _TaskListHomeState extends State<TaskListHome> {
     }
   }
 
+  // Add this inside _TaskListHomeState class
+  void _openTaskDetails(TaskItem t) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TaskDetailsScreen(
+          task: t,
+          // Handle 'Mark Done' from the details page
+          onMarkDone: (task) {
+             _toggleComplete(task);
+             Navigator.pop(context); // Optional: close details page after action
+          },
+          // Handle 'Delete' from the details page
+          onDelete: (task) {
+            setState(() {
+              _tasks.removeWhere((item) => item.id == task.id);
+            });
+            Navigator.pop(context); // Close details page after delete
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Deleted ${task.title}'))
+            );
+          },
+          // Handle 'Edit' (Placeholder)
+          onEdit: (task) {
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Edit functionality coming soon'))
+            );
+          },
+        ),
+      ),
+    );
+    // When coming back, ensure UI updates (in case changes happened without popping)
+    setState(() {});
+  }
+
   void _onSortToggle(SortBy s) {
     setState(() {
       _sortBy = s;
@@ -335,58 +352,61 @@ class _TaskListHomeState extends State<TaskListHome> {
     final badgeText = _reminderLabel(t.reminderBefore);
     return Card(
       elevation: 0,
+      clipBehavior: Clip.antiAlias, // Required for InkWell ripple effect
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // large circle checkbox
-          GestureDetector(
-            onTap: () => _toggleComplete(t),
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.grey.shade400, width: 2), color: t.completed ? _Design.primary : Colors.white),
-              child: t.completed ? const Icon(Icons.check, color: Colors.white) : null,
+      child: InkWell(
+        // === TRIGGER NAVIGATION HERE ===
+        onTap: () => _openTaskDetails(t),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // large circle checkbox
+            GestureDetector(
+              onTap: () => _toggleComplete(t),
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.grey.shade400, width: 2), color: t.completed ? _Design.primary : Colors.white),
+                child: t.completed ? const Icon(Icons.check, color: Colors.white) : null,
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          // main content
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Expanded(child: Text(t.title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, decoration: t.completed ? TextDecoration.lineThrough : null))),
-                const SizedBox(width: 8),
-                // edit icon
-                IconButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Edit ${t.title} (demo)')));
-                  },
-                  icon: const Icon(Icons.edit, color: _Design.primary),
-                ),
-              ]),
-              const SizedBox(height: 6),
-              Text(t.note, style: const TextStyle(fontSize: 14, color: Colors.black54)),
-              const SizedBox(height: 10),
-              Row(children: [
-                Icon(Icons.schedule, size: 16, color: Colors.black54),
-                const SizedBox(width: 6),
-                Text(_formatDate(t.due), style: const TextStyle(fontSize: 14, color: Colors.black54)),
-                const SizedBox(width: 10),
-                if (badgeText.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    decoration: BoxDecoration(color: _Design.accentYellow, borderRadius: BorderRadius.circular(8)),
-                    child: Row(children: [
-                      const Icon(Icons.notifications_active, size: 16, color: Colors.orange),
-                      const SizedBox(width: 6),
-                      Text(badgeText, style: TextStyle(fontSize: 13, color: Colors.black87)),
-                    ]),
+            const SizedBox(width: 12),
+            // main content
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Expanded(child: Text(t.title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, decoration: t.completed ? TextDecoration.lineThrough : null))),
+                  const SizedBox(width: 8),
+                  // edit icon
+                  IconButton(
+                    onPressed: () => _openTaskDetails(t),
+                    icon: const Icon(Icons.edit, color: _Design.primary),
                   ),
-              ])
-            ]),
-          )
-        ]),
+                ]),
+                const SizedBox(height: 6),
+                Text(t.note, style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                const SizedBox(height: 10),
+                Row(children: [
+                  Icon(Icons.schedule, size: 16, color: Colors.black54),
+                  const SizedBox(width: 6),
+                  Text(_formatDate(t.due), style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                  const SizedBox(width: 10),
+                  if (badgeText.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      decoration: BoxDecoration(color: _Design.accentYellow, borderRadius: BorderRadius.circular(8)),
+                      child: Row(children: [
+                        const Icon(Icons.notifications_active, size: 16, color: Colors.orange),
+                        const SizedBox(width: 6),
+                        Text(badgeText, style: TextStyle(fontSize: 13, color: Colors.black87)),
+                      ]),
+                    ),
+                ])
+              ]),
+            )
+          ]),
+        ),
       ),
     );
   }

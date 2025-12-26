@@ -2,20 +2,6 @@
 import 'package:flutter/material.dart';
 import 'task_item.dart';
 /// Replace or expand with domain model / DB ID later.
-// class TaskItem {
-//   final String title;
-//   final String? note;
-//   final DateTime dueDateTime;
-//   final Duration? reminderBefore; // e.g., Duration(hours:1) or Duration(days:1)
-
-//   TaskItem({
-//     required this.title,
-//     this.note,
-//     required this.dueDateTime,
-//     this.reminderBefore,
-//   });
-// }
-
 /// AddTaskPage - supports Voice and Type modes.
 /// Usage:
 /// Navigator.push`TaskItem`(context, MaterialPageRoute(builder: (_) => AddTaskPage()))
@@ -109,7 +95,15 @@ class _AddTaskPageState extends State<AddTaskPage> {
           _selectedTime!.minute,
         );
         final newId = DateTime.now().millisecondsSinceEpoch.toString();
-        final task = TaskItem(id: newId,title: _transcript.trim(), note: _noteController.text.trim(), due: due, reminderBefore: _selectedReminder);
+        final task = TaskItem(
+          id: newId,
+          title: _transcript.trim(), 
+          note: _noteController.text.trim(), 
+          due: due, 
+          reminderBefore: _selectedReminder, 
+          createdAt: DateTime.now(), 
+          updatedAt: DateTime.now(),
+        );
         if (!mounted) return;
         Navigator.of(context).pop(task);
       } else {
@@ -132,6 +126,8 @@ class _AddTaskPageState extends State<AddTaskPage> {
           note: _noteController.text.trim().isEmpty ? '' : _noteController.text.trim(),
           due: due,
           reminderBefore: _selectedReminder,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
         );
         if (!mounted) return;
         Navigator.of(context).pop(task);
