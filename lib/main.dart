@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'add_task.dart';
 import 'task_item.dart';
 import 'task_details.dart';
+import 'edit_task.dart';
 import 'dart:math';
 
 void main() {
@@ -255,6 +256,39 @@ class _TaskListHomeState extends State<TaskListHome> {
     }
   }
 
+  Future<void> _openEditTask(TaskItem t) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditTaskScreen(
+          task: t,
+          // 1. Handle Saving: Replace the old task with the edited one
+          onSave: (editedTask) async {
+            setState(() {
+              final index = _tasks.indexWhere((item) => item.id == editedTask.id);
+              if (index != -1) {
+                _tasks[index] = editedTask;
+                _applySort(); // Re-sort in case date or title changed
+              }
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Task updated successfully')),
+            );
+          },
+          // 2. Handle Deleting (Optional, since Edit screen has a delete button)
+          onDelete: () {
+            setState(() {
+              _tasks.removeWhere((item) => item.id == t.id);
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+               const SnackBar(content: Text('Task deleted')),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   // Add this inside _TaskListHomeState class
   void _openTaskDetails(TaskItem t) async {
     await Navigator.push(
@@ -279,10 +313,11 @@ class _TaskListHomeState extends State<TaskListHome> {
           },
           // Handle 'Edit' (Placeholder)
           onEdit: (task) {
+            // Step A: Close the Details screen first
             Navigator.pop(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Edit functionality coming soon'))
-            );
+            
+            // Step B: Open the Edit screen immediately
+            _openEditTask(task);
           },
         ),
       ),
@@ -380,7 +415,7 @@ class _TaskListHomeState extends State<TaskListHome> {
                   const SizedBox(width: 8),
                   // edit icon
                   IconButton(
-                    onPressed: () => _openTaskDetails(t),
+                    onPressed: () => _openEditTask(t),
                     icon: const Icon(Icons.edit, color: _Design.primary),
                   ),
                 ]),

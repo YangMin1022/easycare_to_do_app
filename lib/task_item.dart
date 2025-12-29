@@ -25,4 +25,26 @@ class TaskItem {
     this.completed = false,
     this.status = TaskStatus.pending,
   });
+
+  TaskItem copyWith({
+    String? id,
+    String? title,
+    String? note,
+    DateTime? due,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Duration? reminderBefore,
+    bool? completed,
+  }) {
+    return TaskItem(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      note: note ?? this.note,
+      due: due ?? this.due,
+      reminderBefore: reminderBefore ?? this.reminderBefore,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      completed: completed ?? this.completed,
+    );
+  }
 }
