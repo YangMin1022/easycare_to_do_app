@@ -4,6 +4,7 @@ import 'add_task.dart';
 import 'task_item.dart';
 import 'task_details.dart';
 import 'edit_task.dart';
+import 'help_screen.dart';
 import 'dart:math';
 
 void main() {
@@ -498,14 +499,12 @@ class _TaskListHomeState extends State<TaskListHome> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _buildBody(),
+      body: _navIndex == 0 ? _buildBody() : _navIndex == 1 ? const HelpScreen() : const Center(child: Text('Settings Placeholder')),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _navIndex,
         onTap: (i) {
           setState(() => _navIndex = i);
-          if (i == 1) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Open Help (demo)')));
-          } else if (i == 2) {
+          if (i == 2) {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Open Settings (demo)')));
           }
         },
