@@ -5,6 +5,7 @@ import 'task_item.dart';
 import 'task_details.dart';
 import 'edit_task.dart';
 import 'help_screen.dart';
+import 'settings.dart';
 import 'dart:math';
 
 void main() {
@@ -499,14 +500,11 @@ class _TaskListHomeState extends State<TaskListHome> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _navIndex == 0 ? _buildBody() : _navIndex == 1 ? const HelpScreen() : const Center(child: Text('Settings Placeholder')),
+      body: _navIndex == 0 ? _buildBody() : _navIndex == 1 ? const HelpScreen() : _navIndex == 2 ? const SettingsScreen() : Container(),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _navIndex,
         onTap: (i) {
           setState(() => _navIndex = i);
-          if (i == 2) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Open Settings (demo)')));
-          }
         },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
@@ -519,20 +517,22 @@ class _TaskListHomeState extends State<TaskListHome> {
       ),
       // Large "Add Task" centrally placed above bottom navigation
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 16),
-        child: ElevatedButton.icon(
-          onPressed: _isNavigatingToAdd ? null : _openAddTask,
-          icon: const Icon(Icons.add, size: 22),
-          label: const Text('+  Add Task', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _Design.primary,
-            minimumSize: const Size(180, 56),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            elevation: 6,
+      floatingActionButton: _navIndex != 0 
+        ? null
+        : Padding(
+          padding: const EdgeInsets.only(bottom: 80),
+          child: ElevatedButton.icon(
+            onPressed: _isNavigatingToAdd ? null : _openAddTask,
+            icon: const Icon(Icons.add, size: 22),
+            label: const Text(' Add Task', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _Design.primary,
+              minimumSize: const Size(180, 56),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              elevation: 6,
+            ),
           ),
         ),
-      ),
     );
   }
 }
