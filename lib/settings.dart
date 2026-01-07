@@ -162,7 +162,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         const Expanded(child: Text('Enable Notifications', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700))),
                         Switch.adaptive(
                           value: _notificationsEnabled,
-                          activeColor: kPrimaryBlue,
+                          activeThumbColor: kPrimaryBlue,
                           onChanged: (v) => setState(() => _notificationsEnabled = v),
                         ),
                       ],

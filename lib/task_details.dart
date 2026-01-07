@@ -22,39 +22,6 @@ import 'edit_task.dart';
 
 // enum TaskStatus { pending, completed, snoozed }
 
-/// Demo launcher shows TaskDetailsScreen with example data.
-class DemoLauncher extends StatelessWidget {
-  const DemoLauncher({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final example = TaskItem(
-      id: '1',
-      title: 'Call Dr. Smith for appointment',
-      note: 'Schedule follow-up visit',
-      due: DateTime(2025, 11, 7, 1, 50),
-      reminderBefore: const Duration(days: 1),
-      createdAt: DateTime(2025, 10, 30, 10, 0),
-      updatedAt: DateTime(2025, 10, 31, 12, 30),
-      status: TaskStatus.pending,
-    );
-
-    return TaskDetailsScreen(
-      task: example,
-      onMarkDone: (task) {
-        // Example callback — in a real app update DB here
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Marked as done (demo)')));
-      },
-      onEdit: (task) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Edit task (demo)')));
-      },
-      onDelete: (task) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Task deleted (demo)')));
-      },
-    );
-  }
-}
-
 /// Reusable Task details screen widget.
 class TaskDetailsScreen extends StatelessWidget {
   final TaskItem task;
@@ -260,8 +227,9 @@ class TaskDetailsScreen extends StatelessWidget {
                     // Secondary: Edit (outlined)
                     OutlinedButton.icon(
                       onPressed: () {
-                        if (onEdit != null) onEdit!(task);
-                        else {
+                        if (onEdit != null) {
+                          onEdit!(task);
+                        } else {
                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Edit (not implemented)')));
                         }
                       },
@@ -281,6 +249,9 @@ class TaskDetailsScreen extends StatelessWidget {
                     // Danger: Delete
                     ElevatedButton.icon(
                       onPressed: () async {
+                        // Capture Navigator and ScaffoldMessenger BEFORE the async gap.
+                        final NavigatorState navigator = Navigator.of(context);
+
                         final ok = await showDialog<bool>(
                           context: context,
                           builder: (ctx) => AlertDialog(
@@ -294,7 +265,7 @@ class TaskDetailsScreen extends StatelessWidget {
                         );
                         if (ok == true) {
                           if (onDelete != null) onDelete!(task);
-                          Navigator.of(context).maybePop();
+                          navigator.maybePop();
                         }
                       },
                       icon: const Icon(Icons.delete_outline, size: 20),

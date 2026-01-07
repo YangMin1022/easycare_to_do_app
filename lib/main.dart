@@ -238,6 +238,8 @@ class _TaskListHomeState extends State<TaskListHome> {
         MaterialPageRoute(builder: (_) => const AddTaskPage()),
       );
 
+      if (!mounted) return;
+      
       if (newTask != null) {
         setState(() {
           _tasks.add(newTask);

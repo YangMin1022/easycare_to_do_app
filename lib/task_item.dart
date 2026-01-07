@@ -1,6 +1,4 @@
 // lib/task_item.dart
-import 'package:flutter/material.dart';
-
 enum TaskStatus { pending, completed, snoozed }
 
 class TaskItem {

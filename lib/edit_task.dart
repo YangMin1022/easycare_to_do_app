@@ -14,12 +14,12 @@ class EditTaskScreen extends StatefulWidget {
   final VoidCallback? onDelete;
 
   const EditTaskScreen({
-    Key? key,
+    super.key,
     required this.task,
     this.onSave,
     this.onCancel,
     this.onDelete,
-  }) : super(key: key);
+  });
 
   @override
   State<EditTaskScreen> createState() => _EditTaskScreenState();
@@ -174,6 +174,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
       // close screen and return edited task to caller
       if (mounted) Navigator.of(context).pop(edited);
     } catch (e) {
+      if (!mounted) return;
       // show error
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Save failed: $e')));
     } finally {
@@ -198,6 +199,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
         ],
       ),
     );
+    if (!mounted) return;
     if (confirm == true) {
       if (widget.onDelete != null) widget.onDelete!();
       Navigator.of(context).pop(); // close screen after delete
