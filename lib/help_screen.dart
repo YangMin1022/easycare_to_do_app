@@ -19,7 +19,7 @@ class HelpScreen extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
+            children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -61,15 +61,27 @@ class HelpScreen extends StatelessWidget {
 
               // Quick Tips section
               _SectionTitle(title: 'Quick Tips'),
-              SizedBox(height: 8),
-              _TipRow(number: 1, text: 'Tap the + Add Task button to create a new task'),
-              SizedBox(height: 8),
-              _TipRow(number: 2, text: 'Use the speaker icon to hear all your tasks'),
-              SizedBox(height: 8),
-              _TipRow(number: 3, text: 'Tap the circle next to a task to mark it complete'),
-              SizedBox(height: 8),
-              _TipRow(number: 4, text: 'Visit Settings to make text larger or enable high contrast'),
-              SizedBox(height: 20),
+              const SizedBox(height: 8),
+              Card(
+                color: kSurfaceGrey,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  child: Column(
+                    children: [
+                      _TipRow(number: 1, text: 'Tap the + Add Task button to create a new task', boldParts: ['+ Add Task']),
+                      const Divider(height: 18, color: kSurfaceGrey),
+                      _TipRow(number: 2, text: 'Use the speaker icon to hear all your tasks', boldParts: ['speaker icon']),
+                      const Divider(height: 18, color: kSurfaceGrey),
+                      _TipRow(number: 3, text: 'Tap the circle next to a task to mark it complete', boldParts: ['circle']),
+                      const Divider(height: 18, color: kSurfaceGrey),
+                      _TipRow(number: 4, text: 'Visit Settings to make text larger or enable high contrast', boldParts: ['Settings']),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
 
               // FAQ section
               _SectionTitle(title: 'Frequently Asked Questions'),
@@ -96,6 +108,8 @@ class HelpScreen extends StatelessWidget {
               SizedBox(height: 20),
 
               // Footer
+              _SectionTitle(title: 'Need More Help?'),
+              SizedBox(height: 8),
               _NeedMoreHelpFooter(),
               SizedBox(height: 24),
             ],
@@ -116,10 +130,10 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+      Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
       if (subtitle != null) ...[
         const SizedBox(height: 6),
-        Text(subtitle!, style: const TextStyle(fontSize: 13, color: Colors.black54)),
+        Text(subtitle!, style: const TextStyle(fontSize: 16, color: Colors.black54)),
       ],
     ]);
   }
@@ -170,9 +184,9 @@ class _TutorialCard extends StatelessWidget {
               // Title + subtitle
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                  Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
-                  Text(subtitle, style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                  Text(subtitle, style: const TextStyle(fontSize: 16, color: Colors.black54)),
                 ]),
               ),
 
@@ -194,37 +208,85 @@ class _TutorialCard extends StatelessWidget {
   }
 }
 
+/// Tip row used inside the single Quick Tips card.
+/// `boldParts` lists exact substrings in `text` that should be bolded.
 class _TipRow extends StatelessWidget {
   final int number;
   final String text;
-  const _TipRow({required this.number, required this.text});
+  final List<String> boldParts;
+
+  const _TipRow({required this.number, required this.text, this.boldParts = const []});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: kSurfaceGrey,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // blue number circle
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(color: kPrimaryBlue, borderRadius: BorderRadius.circular(16)),
-              child: Center(child: Text(number.toString(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700))),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(text, style: const TextStyle(fontSize: 14))),
-          ],
-        ),
+    // Blue number circle
+    final numberCircle = Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(color: kPrimaryBlue, borderRadius: BorderRadius.circular(16)),
+      child: Center(child: Text(number.toString(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700))),
+    );
+
+    // Rich text with selective bolding
+    final rich = RichText(
+      text: TextSpan(
+        style: const TextStyle(fontSize: 16, color: Colors.black87),
+        children: _buildSpans(text, boldParts),
       ),
+    );
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        numberCircle,
+        const SizedBox(width: 20),
+        Expanded(child: rich),
+      ],
     );
   }
 }
+
+/// Build TextSpan chunks where `parts` (substrings) appear bolded in the order of earliest match.
+/// This function finds the earliest match of any boldPart and creates alternating normal/bold spans.
+List<TextSpan> _buildSpans(String text, List<String> parts) {
+  final spans = <TextSpan>[];
+  int pos = 0;
+  final lower = text.toLowerCase();
+
+  // defensive: sort parts by earliest index to avoid mismatches when multiple parts exist
+  while (pos < text.length) {
+    int bestIndex = -1;
+    String? bestPart;
+    for (final part in parts) {
+      if (part.isEmpty) continue;
+      final idx = lower.indexOf(part.toLowerCase(), pos);
+      if (idx >= 0 && (bestIndex == -1 || idx < bestIndex)) {
+        bestIndex = idx;
+        bestPart = text.substring(idx, idx + part.length);
+      }
+    }
+
+    if (bestIndex == -1) {
+      // no more matches — append the rest as normal text
+      spans.add(TextSpan(text: text.substring(pos)));
+      break;
+    }
+
+    // text before the match
+    if (bestIndex > pos) {
+      spans.add(TextSpan(text: text.substring(pos, bestIndex)));
+    }
+
+    // matched bold part (use bold style)
+    spans.add(TextSpan(text: bestPart, style: const TextStyle(fontWeight: FontWeight.w700)));
+
+    // advance pos
+    pos = bestIndex + (bestPart?.length ?? 0);
+  }
+
+  return spans;
+}
+
 
 class _FAQCard extends StatelessWidget {
   final String question;
@@ -244,10 +306,10 @@ class _FAQCard extends StatelessWidget {
           Row(children: [
             CircleAvatar(radius: 12, backgroundColor: kPrimaryBlue, child: const Icon(Icons.help_outline, color: Colors.white, size: 16)),
             const SizedBox(width: 10),
-            Expanded(child: Text(question, style: const TextStyle(fontWeight: FontWeight.w700))),
+            Expanded(child: Text(question, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),
           ]),
           const SizedBox(height: 10),
-          Text(answer, style: const TextStyle(fontSize: 13, color: Colors.black87)),
+          Text(answer, style: const TextStyle(fontSize: 16, color: Colors.black87)),
         ]),
       ),
     );
@@ -262,39 +324,30 @@ class _NeedMoreHelpFooter extends StatelessWidget {
     return Card(
       color: kSurfaceGrey,
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
-        child: Column(children: [
-          const Text('Need More Help?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-            child: Row(children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(color: kPrimaryBlue, borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.mail_outline, color: Colors.white),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
-                  Text('Ask a Helper', style: TextStyle(fontWeight: FontWeight.w700)),
-                  SizedBox(height: 6),
-                  Text(
-                    'If you need assistance, please ask a family member, caregiver, or friend for help with EasyCare.',
-                    style: TextStyle(fontSize: 13, color: Colors.black54),
-                  ),
-                ]),
-              ),
-            ]),
-          ),
-          const SizedBox(height: 12),
-          const Text('Contact: support@easycare.app', style: TextStyle(fontSize: 13, color: Colors.black54)),
-        ]),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center, // Center items horizontally
+          children: [
+            // 1. Icon 
+            const Icon(Icons.mail_outline, size: 48, color: kPrimaryBlue,),
+            const SizedBox(height: 16),
+            
+            // 2. The Title
+            const Text('Ask a Helper',style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.black), textAlign: TextAlign.center,),
+            const SizedBox(height: 8),
+            
+            // 3. The Body Text
+            const Text('If you need assistance, please ask a family member, caregiver, or friend for help with EasyCare.', style: TextStyle(fontSize: 15, color: Colors.black54, height: 1.5), textAlign: TextAlign.center,),
+            const SizedBox(height: 24),
+
+            // 4. Contact Info
+            const Text('Contact: support@easycare.app',style: TextStyle(fontSize: 14, color: Colors.black54, fontWeight: FontWeight.w500), textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
