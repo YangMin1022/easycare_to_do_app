@@ -1,5 +1,6 @@
 // lib/add_task_page.dart
 import 'package:flutter/material.dart';
+import 'data/app_database.dart';
 import 'task_item.dart';
 /// Replace or expand with domain model / DB ID later.
 /// AddTaskPage - supports Voice and Type modes.

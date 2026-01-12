@@ -1,5 +1,6 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
+import 'data/app_database.dart';
 import 'add_task.dart';
 import 'task_item.dart';
 import 'task_details.dart';
@@ -162,12 +163,12 @@ class SimpleOnboardingPage extends StatelessWidget {
   }
 }
 
-/* Demo data */
-final List<TaskItem> _demoTasks = [
-  TaskItem(id: '1', title: 'Take morning medication', note: 'With breakfast - 2 pills', due: DateTime(2025, 11, 25), reminderBefore: const Duration(hours: 1), createdAt: DateTime.now(), updatedAt: DateTime.now()),
-  TaskItem(id: '2', title: 'Call Dr. Smith for appointment', note: 'Schedule follow-up visit', due: DateTime(2025, 11, 27), reminderBefore: const Duration(days: 1), createdAt: DateTime.now(), updatedAt: DateTime.now()),
-  TaskItem(id: '3', title: 'Buy groceries', note: 'Milk, eggs, bread', due: DateTime(2025, 11, 28), reminderBefore: const Duration(days: 3), createdAt: DateTime.now(), updatedAt: DateTime.now()),
-];
+// /* Demo data */
+// final List<TaskItem> _demoTasks = [
+//   TaskItem(id: '1', title: 'Take morning medication', note: 'With breakfast - 2 pills', due: DateTime(2025, 11, 25), reminderBefore: const Duration(hours: 1), createdAt: DateTime.now(), updatedAt: DateTime.now()),
+//   TaskItem(id: '2', title: 'Call Dr. Smith for appointment', note: 'Schedule follow-up visit', due: DateTime(2025, 11, 27), reminderBefore: const Duration(days: 1), createdAt: DateTime.now(), updatedAt: DateTime.now()),
+//   TaskItem(id: '3', title: 'Buy groceries', note: 'Milk, eggs, bread', due: DateTime(2025, 11, 28), reminderBefore: const Duration(days: 3), createdAt: DateTime.now(), updatedAt: DateTime.now()),
+// ];
 
 /* ========= Task List Home page ========= */
 
@@ -181,17 +182,15 @@ class TaskListHome extends StatefulWidget {
 
 class _TaskListHomeState extends State<TaskListHome> {
   final TextEditingController _searchCtrl = TextEditingController();
-
+  final AppDatabase _db = AppDatabase();
+  
   bool _isNavigatingToAdd = false;
-
   SortBy _sortBy = SortBy.due;
-  List<TaskItem> _tasks = List<TaskItem>.from(_demoTasks); // copy
   int _navIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _applySort();
     _searchCtrl.addListener(_onSearchChanged);
   }
 
@@ -205,28 +204,26 @@ class _TaskListHomeState extends State<TaskListHome> {
     setState(() {}); // rebuild to filter
   }
 
-  void _applySort() {
-    setState(() {
-      if (_sortBy == SortBy.due) {
-        _tasks.sort((a, b) => a.due.compareTo(b.due));
-      } else {
-        _tasks.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
-      }
-    });
-  }
-
-  List<TaskItem> get _visibleTasks {
+  List<TaskItem> _filterTasks(List<TaskItem> tasks) {
     final q = _searchCtrl.text.trim().toLowerCase();
-    if (q.isEmpty) return _tasks;
-    return _tasks.where((t) => t.title.toLowerCase().contains(q) || t.note.toLowerCase().contains(q)).toList();
+    if (q.isEmpty) return tasks;
+    return tasks.where((t) => t.title.toLowerCase().contains(q) || t.note.toLowerCase().contains(q)).toList();
   }
 
-  void _toggleComplete(TaskItem t) {
-    setState(() {
-      t.completed = !t.completed;
-    });
-    final msg = t.completed ? 'Marked done' : 'Marked as not done';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$msg: ${t.title}'), duration: const Duration(seconds: 1)));
+  // List<TaskItem> get _visibleTasks {
+  //   final q = _searchCtrl.text.trim().toLowerCase();
+  //   if (q.isEmpty) return _tasks;
+  //   return _tasks.where((t) => t.title.toLowerCase().contains(q) || t.note.toLowerCase().contains(q)).toList();
+  // }
+
+  void _toggleComplete(TaskItem t) async {
+    // Optimistic update handled by Stream, but we call DB here
+    await _db.setTaskCompleted(t.id, !t.completed);
+    
+    final msg = !t.completed ? 'Marked done' : 'Marked as not done'; // Logic flipped because we just toggled it
+    if(mounted) {
+       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$msg: ${t.title}'), duration: const Duration(seconds: 1)));
+    }
   }
 
   Future<void> _openAddTask() async {
@@ -241,11 +238,8 @@ class _TaskListHomeState extends State<TaskListHome> {
       if (!mounted) return;
       
       if (newTask != null) {
-        setState(() {
-          _tasks.add(newTask);
-          _applySort();
-        });
-
+        // Insert into DB. The DB generates a new ID, ignoring the temporary one from AddTaskPage.
+        await _db.insertTaskItem(newTask);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Task added')));
       }
     } finally {
@@ -268,25 +262,17 @@ class _TaskListHomeState extends State<TaskListHome> {
           task: t,
           // 1. Handle Saving: Replace the old task with the edited one
           onSave: (editedTask) async {
-            setState(() {
-              final index = _tasks.indexWhere((item) => item.id == editedTask.id);
-              if (index != -1) {
-                _tasks[index] = editedTask;
-                _applySort(); // Re-sort in case date or title changed
-              }
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Task updated successfully')),
-            );
+            await _db.updateTaskItem(editedTask);
+            if(mounted){
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Task updated successfully')),);
+            }
           },
           // 2. Handle Deleting (Optional, since Edit screen has a delete button)
-          onDelete: () {
-            setState(() {
-              _tasks.removeWhere((item) => item.id == t.id);
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-               const SnackBar(content: Text('Task deleted')),
-            );
+          onDelete: () async{
+            await _db.deleteTaskByStringId(t.id);
+            if(mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Task deleted')),);
+            }
           },
         ),
       ),
@@ -306,14 +292,14 @@ class _TaskListHomeState extends State<TaskListHome> {
              Navigator.pop(context); // Optional: close details page after action
           },
           // Handle 'Delete' from the details page
-          onDelete: (task) {
-            setState(() {
-              _tasks.removeWhere((item) => item.id == task.id);
-            });
-            Navigator.pop(context); // Close details page after delete
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Deleted ${task.title}'))
-            );
+          onDelete: (task) async {
+            await _db.deleteTaskByStringId(task.id);
+            if(mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Deleted ${task.title}'))
+                );
+            }
           },
           // Handle 'Edit' (Placeholder)
           onEdit: (task) {
@@ -333,7 +319,6 @@ class _TaskListHomeState extends State<TaskListHome> {
   void _onSortToggle(SortBy s) {
     setState(() {
       _sortBy = s;
-      _applySort();
     });
   }
 
@@ -471,7 +456,6 @@ class _TaskListHomeState extends State<TaskListHome> {
   }
 
   Widget _buildBody() {
-    final visible = _visibleTasks;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: _Design.horizontalPadding),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -486,14 +470,34 @@ class _TaskListHomeState extends State<TaskListHome> {
         const SizedBox(height: 12),
         const Text('To Do', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
+        // Expanded ListView
         Expanded(
-          child: visible.isEmpty
-              ? const Center(child: Text('No tasks', style: TextStyle(fontSize: 16, color: Colors.black54)))
-              : ListView.builder(
-                  padding: const EdgeInsets.only(bottom: 120, top: 4),
-                  itemCount: visible.length,
-                  itemBuilder: (_, i) => _buildTaskCard(visible[i]),
-                ),
+          child: StreamBuilder<List<TaskItem>>(
+            // Listen to the database stream. It handles sorting by due/title internally based on the arg.
+            stream: _db.watchAllTaskItems(sortByDue: _sortBy == SortBy.due),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              
+              if (snapshot.hasError) {
+                return Center(child: Text("Error: ${snapshot.error}"));
+              }
+
+              final allTasks = snapshot.data ?? [];
+              final visible = _filterTasks(allTasks); // Apply search filter
+
+              if (visible.isEmpty) {
+                return const Center(child: Text('No tasks', style: TextStyle(fontSize: 16, color: Colors.black54)));
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.only(bottom: 120, top: 4),
+                itemCount: visible.length,
+                itemBuilder: (_, i) => _buildTaskCard(visible[i]),
+              );
+            },
+          ),
         )
       ]),
     );
