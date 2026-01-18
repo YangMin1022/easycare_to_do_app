@@ -3,26 +3,6 @@ import 'data/app_database.dart';
 import 'task_item.dart';
 import 'edit_task.dart';
 
-/// Simple Task model used by TaskDetailsScreen.
-/// Extend with IDs or DB fields as needed.
-// class Task {
-//   final String title;
-//   final String? note;
-//   final DateTime dueDateTime;
-//   final String reminderBefore; // e.g. "1 days before due date"
-//   final TaskStatus status;
-
-//   Task({
-//     required this.title,
-//     this.note,
-//     required this.dueDateTime,
-//     required this.reminderBefore,
-//     this.status = TaskStatus.pending,
-//   });
-// }
-
-// enum TaskStatus { pending, completed, snoozed }
-
 /// Reusable Task details screen widget.
 class TaskDetailsScreen extends StatelessWidget {
   final TaskItem task;

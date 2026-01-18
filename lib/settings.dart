@@ -1,5 +1,6 @@
 // lib/settings.dart
 import 'package:flutter/material.dart';
+import 'services/tts_service.dart';
 
 const Color kPrimaryBlue = Color(0xFF0A6CF0);
 const Color kSurfaceGrey = Color(0xFFF4F6F8);
@@ -15,13 +16,37 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  // TTS Service instance
+  final TtsService _tts = TtsService();
+
   // local interactive state
   FontSizeOption _fontSize = FontSizeOption.medium;
+
+  // TTS State (Default values, will be overwritten by loadSettings)
   double _ttsSpeed = 1.2; // multiplier 0.5x - 2.0x
   double _ttsVolume = 50.0; // percent
-  bool _notificationsEnabled = true;
 
-  // helper getters
+  bool _notificationsEnabled = true;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  // Load saved preferences from the TTS Service
+  Future<void> _loadSettings() async {
+    await _tts.init(); // Ensure service is ready
+    if (!mounted) return;
+    setState(() {
+      _ttsSpeed = _tts.speechRate;
+      _ttsVolume = _tts.volume;
+      _isLoading = false;
+    });
+  }
+
+  // helper getters for Font Size logic
   double get _fontPreviewSize {
     switch (_fontSize) {
       case FontSizeOption.small:
@@ -118,6 +143,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // Text-to-Speech section
                 const _SectionTitle(title: 'Text-to-Speech', subtitle: null),
                 const SizedBox(height: 8),
+                // Voice Speed Slider
                 const Text('Voice Speed', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
                 _LabeledSlider(
@@ -125,12 +151,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   max: 2.0,
                   divisions: 15,
                   value: _ttsSpeed,
-                  onChanged: (v) => setState(() => _ttsSpeed = double.parse(v.toStringAsFixed(2))),
+                  onChanged: (v) {
+                    setState(() => _ttsSpeed = v);
+                    _tts.setSpeechRate(v); // Update Service
+                  },
                   leftLabel: 'Slow',
                   rightLabel: 'Fast',
                   valueLabel: '${_ttsSpeed.toStringAsFixed(1)}x',
                 ),
                 const SizedBox(height: 12),
+                // Voice Volume Slider
                 const Text('Voice Volume', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
                 _LabeledSlider(
@@ -138,7 +168,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   max: 100,
                   divisions: 100,
                   value: _ttsVolume,
-                  onChanged: (v) => setState(() => _ttsVolume = v.roundToDouble()),
+                  onChanged: (v) {
+                    setState(() => _ttsVolume = v);
+                    _tts.setVolume(v); // Update Service
+                  },
                   leftLabel: 'Quiet',
                   rightLabel: 'Loud',
                   valueLabel: '${_ttsVolume.round()}%',

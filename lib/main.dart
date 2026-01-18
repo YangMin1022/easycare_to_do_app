@@ -7,6 +7,8 @@ import 'task_details.dart';
 import 'edit_task.dart';
 import 'help_screen.dart';
 import 'settings.dart';
+import 'services/tts_service.dart';
+import 'services/tts_helpers.dart';
 import 'dart:math';
 
 void main() {
@@ -163,12 +165,6 @@ class SimpleOnboardingPage extends StatelessWidget {
   }
 }
 
-// /* Demo data */
-// final List<TaskItem> _demoTasks = [
-//   TaskItem(id: '1', title: 'Take morning medication', note: 'With breakfast - 2 pills', due: DateTime(2025, 11, 25), reminderBefore: const Duration(hours: 1), createdAt: DateTime.now(), updatedAt: DateTime.now()),
-//   TaskItem(id: '2', title: 'Call Dr. Smith for appointment', note: 'Schedule follow-up visit', due: DateTime(2025, 11, 27), reminderBefore: const Duration(days: 1), createdAt: DateTime.now(), updatedAt: DateTime.now()),
-//   TaskItem(id: '3', title: 'Buy groceries', note: 'Milk, eggs, bread', due: DateTime(2025, 11, 28), reminderBefore: const Duration(days: 3), createdAt: DateTime.now(), updatedAt: DateTime.now()),
-// ];
 
 /* ========= Task List Home page ========= */
 
@@ -462,7 +458,50 @@ class _TaskListHomeState extends State<TaskListHome> {
         const SizedBox(height: 6),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text("Today's Tasks", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
-          IconButton(onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Read aloud (demo)'))), icon: const Icon(Icons.volume_up, color: _Design.primary), tooltip: 'Read tasks aloud'),
+          ValueListenableBuilder<bool>(
+            valueListenable: TtsService().isSpeakingNotifier,
+            builder: (context, isSpeaking, child) {
+              return IconButton(
+                onPressed: () async {
+                  // If currently speaking, this will STOP it.
+                  // If stopped, this will START it.
+                  if (isSpeaking) {
+                    // Logic to STOP
+                    await TtsService().stop();
+
+                    // Check mounted before using context after async gap
+                    if (!context.mounted) return;
+
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reading stopped.')),);
+                  } else {
+                    // Logic to START
+                    final allTasks = await _db.watchAllTaskItems(sortByDue: _sortBy == SortBy.due).first;
+
+                    // Check mounted before using context after async gap
+                    if (!context.mounted) return;
+
+                    final tasksToRead = _filterTasks(allTasks);
+
+                    if (tasksToRead.isEmpty) {
+                      await TtsService().speak("You have no tasks today.");
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reading tasks... Tap stop to cancel.')),);
+                      // This helper now handles the looping and stopping check
+                      await readAllTasks(tasksToRead);
+                    }
+                  }
+                },
+                // CHANGE ICON BASED ON STATE
+                icon: Icon(
+                  isSpeaking ? Icons.stop_circle_outlined : Icons.volume_up, 
+                  color: isSpeaking ? Colors.red : _Design.primary, // Make stop button red
+                  // size: isSpeaking ? 28 : 24,
+                ),
+                tooltip: isSpeaking ? 'Stop reading' : 'Read tasks aloud',
+              );
+            },
+          ),
         ]),
         _buildSearchBar(),
         const SizedBox(height: 6),
