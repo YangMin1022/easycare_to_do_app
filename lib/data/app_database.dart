@@ -22,6 +22,10 @@ class Tasks extends Table {
   IntColumn get due => integer()();
   // store reminder as minutes (nullable)
   IntColumn get reminderBefore => integer().nullable()();
+  // Stores the ABSOLUTE time the notification should fire
+  IntColumn get reminderTime => integer().nullable()();
+  // Stores the unique ID used for the system Notification
+  IntColumn get notificationId => integer().nullable()();
   BoolColumn get completed => boolean().withDefault(const Constant(false))();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
@@ -38,7 +42,44 @@ class AppDatabase extends _$AppDatabase {
   factory AppDatabase() => _instance;
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration {
+    return MigrationStrategy(
+      onCreate: (Migrator m) async {
+        await m.createAll();
+      },
+      onUpgrade: (Migrator m, int from, int to) async {
+        if (from < 2) {
+          // 1. Add new columns
+          await m.addColumn(tasks, tasks.reminderTime);
+          await m.addColumn(tasks, tasks.notificationId);
+
+          // 2. MIGRATE DATA: Calculate absolute reminderTime for existing tasks
+          // This ensures old tasks with "10 mins before" get a real schedule time
+          final allTasks = await select(tasks).get();
+          for (var task in allTasks) {
+            if (task.reminderBefore != null && task.reminderTime == null) {
+              final due = DateTime.fromMillisecondsSinceEpoch(task.due);
+              final duration = Duration(minutes: task.reminderBefore!);
+              final newReminderTime = due.subtract(duration);
+              
+              // Generate a stable ID for the notification
+              final notifId = task.id.hashCode;
+
+              await (update(tasks)..where((t) => t.id.equals(task.id))).write(
+                TasksCompanion(
+                  reminderTime: Value(newReminderTime.millisecondsSinceEpoch),
+                  notificationId: Value(notifId),
+                ),
+              );
+            }
+          }
+        }
+      },
+    );
+  }
 
   // -------------------------
   // CRUD helpers (TaskItem based)
@@ -55,6 +96,8 @@ class AppDatabase extends _$AppDatabase {
       note: Value(item.note),
       due: item.due.millisecondsSinceEpoch,
       reminderBefore: Value(item.reminderBefore?.inMinutes),
+      reminderTime: Value(item.reminderTime?.millisecondsSinceEpoch),
+      notificationId: Value(item.notificationId),
       completed: Value(item.completed),
       createdAt: item.createdAt.millisecondsSinceEpoch,
       updatedAt: item.updatedAt.millisecondsSinceEpoch,
@@ -123,6 +166,8 @@ class AppDatabase extends _$AppDatabase {
       note: item.note,
       due: item.due.millisecondsSinceEpoch,
       reminderBefore: item.reminderBefore?.inMinutes,
+      reminderTime: item.reminderTime?.millisecondsSinceEpoch,
+      notificationId: item.notificationId,
       completed: item.completed,
       createdAt: item.createdAt.millisecondsSinceEpoch,
       updatedAt: item.updatedAt.millisecondsSinceEpoch,
@@ -163,6 +208,8 @@ class AppDatabase extends _$AppDatabase {
       note: row.note,
       due: DateTime.fromMillisecondsSinceEpoch(row.due),
       reminderBefore: row.reminderBefore == null ? null : Duration(minutes: row.reminderBefore!),
+      reminderTime: row.reminderTime == null ? null : DateTime.fromMillisecondsSinceEpoch(row.reminderTime!),
+      notificationId: row.notificationId,
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
       completed: row.completed,

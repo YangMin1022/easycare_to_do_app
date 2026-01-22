@@ -64,6 +64,28 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _reminderTimeMeta = const VerificationMeta(
+    'reminderTime',
+  );
+  @override
+  late final GeneratedColumn<int> reminderTime = GeneratedColumn<int>(
+    'reminder_time',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _notificationIdMeta = const VerificationMeta(
+    'notificationId',
+  );
+  @override
+  late final GeneratedColumn<int> notificationId = GeneratedColumn<int>(
+    'notification_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _completedMeta = const VerificationMeta(
     'completed',
   );
@@ -118,6 +140,8 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     note,
     due,
     reminderBefore,
+    reminderTime,
+    notificationId,
     completed,
     createdAt,
     updatedAt,
@@ -166,6 +190,24 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
         reminderBefore.isAcceptableOrUnknown(
           data['reminder_before']!,
           _reminderBeforeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('reminder_time')) {
+      context.handle(
+        _reminderTimeMeta,
+        reminderTime.isAcceptableOrUnknown(
+          data['reminder_time']!,
+          _reminderTimeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notification_id')) {
+      context.handle(
+        _notificationIdMeta,
+        notificationId.isAcceptableOrUnknown(
+          data['notification_id']!,
+          _notificationIdMeta,
         ),
       );
     }
@@ -226,6 +268,14 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
         DriftSqlType.int,
         data['${effectivePrefix}reminder_before'],
       ),
+      reminderTime: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reminder_time'],
+      ),
+      notificationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}notification_id'],
+      ),
       completed: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}completed'],
@@ -257,6 +307,8 @@ class Task extends DataClass implements Insertable<Task> {
   final String note;
   final int due;
   final int? reminderBefore;
+  final int? reminderTime;
+  final int? notificationId;
   final bool completed;
   final int createdAt;
   final int updatedAt;
@@ -267,6 +319,8 @@ class Task extends DataClass implements Insertable<Task> {
     required this.note,
     required this.due,
     this.reminderBefore,
+    this.reminderTime,
+    this.notificationId,
     required this.completed,
     required this.createdAt,
     required this.updatedAt,
@@ -281,6 +335,12 @@ class Task extends DataClass implements Insertable<Task> {
     map['due'] = Variable<int>(due);
     if (!nullToAbsent || reminderBefore != null) {
       map['reminder_before'] = Variable<int>(reminderBefore);
+    }
+    if (!nullToAbsent || reminderTime != null) {
+      map['reminder_time'] = Variable<int>(reminderTime);
+    }
+    if (!nullToAbsent || notificationId != null) {
+      map['notification_id'] = Variable<int>(notificationId);
     }
     map['completed'] = Variable<bool>(completed);
     map['created_at'] = Variable<int>(createdAt);
@@ -298,6 +358,12 @@ class Task extends DataClass implements Insertable<Task> {
       reminderBefore: reminderBefore == null && nullToAbsent
           ? const Value.absent()
           : Value(reminderBefore),
+      reminderTime: reminderTime == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderTime),
+      notificationId: notificationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notificationId),
       completed: Value(completed),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -316,6 +382,8 @@ class Task extends DataClass implements Insertable<Task> {
       note: serializer.fromJson<String>(json['note']),
       due: serializer.fromJson<int>(json['due']),
       reminderBefore: serializer.fromJson<int?>(json['reminderBefore']),
+      reminderTime: serializer.fromJson<int?>(json['reminderTime']),
+      notificationId: serializer.fromJson<int?>(json['notificationId']),
       completed: serializer.fromJson<bool>(json['completed']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
@@ -331,6 +399,8 @@ class Task extends DataClass implements Insertable<Task> {
       'note': serializer.toJson<String>(note),
       'due': serializer.toJson<int>(due),
       'reminderBefore': serializer.toJson<int?>(reminderBefore),
+      'reminderTime': serializer.toJson<int?>(reminderTime),
+      'notificationId': serializer.toJson<int?>(notificationId),
       'completed': serializer.toJson<bool>(completed),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
@@ -344,6 +414,8 @@ class Task extends DataClass implements Insertable<Task> {
     String? note,
     int? due,
     Value<int?> reminderBefore = const Value.absent(),
+    Value<int?> reminderTime = const Value.absent(),
+    Value<int?> notificationId = const Value.absent(),
     bool? completed,
     int? createdAt,
     int? updatedAt,
@@ -356,6 +428,10 @@ class Task extends DataClass implements Insertable<Task> {
     reminderBefore: reminderBefore.present
         ? reminderBefore.value
         : this.reminderBefore,
+    reminderTime: reminderTime.present ? reminderTime.value : this.reminderTime,
+    notificationId: notificationId.present
+        ? notificationId.value
+        : this.notificationId,
     completed: completed ?? this.completed,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -370,6 +446,12 @@ class Task extends DataClass implements Insertable<Task> {
       reminderBefore: data.reminderBefore.present
           ? data.reminderBefore.value
           : this.reminderBefore,
+      reminderTime: data.reminderTime.present
+          ? data.reminderTime.value
+          : this.reminderTime,
+      notificationId: data.notificationId.present
+          ? data.notificationId.value
+          : this.notificationId,
       completed: data.completed.present ? data.completed.value : this.completed,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -385,6 +467,8 @@ class Task extends DataClass implements Insertable<Task> {
           ..write('note: $note, ')
           ..write('due: $due, ')
           ..write('reminderBefore: $reminderBefore, ')
+          ..write('reminderTime: $reminderTime, ')
+          ..write('notificationId: $notificationId, ')
           ..write('completed: $completed, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -400,6 +484,8 @@ class Task extends DataClass implements Insertable<Task> {
     note,
     due,
     reminderBefore,
+    reminderTime,
+    notificationId,
     completed,
     createdAt,
     updatedAt,
@@ -414,6 +500,8 @@ class Task extends DataClass implements Insertable<Task> {
           other.note == this.note &&
           other.due == this.due &&
           other.reminderBefore == this.reminderBefore &&
+          other.reminderTime == this.reminderTime &&
+          other.notificationId == this.notificationId &&
           other.completed == this.completed &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
@@ -426,6 +514,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
   final Value<String> note;
   final Value<int> due;
   final Value<int?> reminderBefore;
+  final Value<int?> reminderTime;
+  final Value<int?> notificationId;
   final Value<bool> completed;
   final Value<int> createdAt;
   final Value<int> updatedAt;
@@ -436,6 +526,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.note = const Value.absent(),
     this.due = const Value.absent(),
     this.reminderBefore = const Value.absent(),
+    this.reminderTime = const Value.absent(),
+    this.notificationId = const Value.absent(),
     this.completed = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -447,6 +539,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.note = const Value.absent(),
     required int due,
     this.reminderBefore = const Value.absent(),
+    this.reminderTime = const Value.absent(),
+    this.notificationId = const Value.absent(),
     this.completed = const Value.absent(),
     required int createdAt,
     required int updatedAt,
@@ -461,6 +555,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Expression<String>? note,
     Expression<int>? due,
     Expression<int>? reminderBefore,
+    Expression<int>? reminderTime,
+    Expression<int>? notificationId,
     Expression<bool>? completed,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
@@ -472,6 +568,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
       if (note != null) 'note': note,
       if (due != null) 'due': due,
       if (reminderBefore != null) 'reminder_before': reminderBefore,
+      if (reminderTime != null) 'reminder_time': reminderTime,
+      if (notificationId != null) 'notification_id': notificationId,
       if (completed != null) 'completed': completed,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -485,6 +583,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Value<String>? note,
     Value<int>? due,
     Value<int?>? reminderBefore,
+    Value<int?>? reminderTime,
+    Value<int?>? notificationId,
     Value<bool>? completed,
     Value<int>? createdAt,
     Value<int>? updatedAt,
@@ -496,6 +596,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
       note: note ?? this.note,
       due: due ?? this.due,
       reminderBefore: reminderBefore ?? this.reminderBefore,
+      reminderTime: reminderTime ?? this.reminderTime,
+      notificationId: notificationId ?? this.notificationId,
       completed: completed ?? this.completed,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -521,6 +623,12 @@ class TasksCompanion extends UpdateCompanion<Task> {
     if (reminderBefore.present) {
       map['reminder_before'] = Variable<int>(reminderBefore.value);
     }
+    if (reminderTime.present) {
+      map['reminder_time'] = Variable<int>(reminderTime.value);
+    }
+    if (notificationId.present) {
+      map['notification_id'] = Variable<int>(notificationId.value);
+    }
     if (completed.present) {
       map['completed'] = Variable<bool>(completed.value);
     }
@@ -544,6 +652,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
           ..write('note: $note, ')
           ..write('due: $due, ')
           ..write('reminderBefore: $reminderBefore, ')
+          ..write('reminderTime: $reminderTime, ')
+          ..write('notificationId: $notificationId, ')
           ..write('completed: $completed, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -571,6 +681,8 @@ typedef $$TasksTableCreateCompanionBuilder =
       Value<String> note,
       required int due,
       Value<int?> reminderBefore,
+      Value<int?> reminderTime,
+      Value<int?> notificationId,
       Value<bool> completed,
       required int createdAt,
       required int updatedAt,
@@ -583,6 +695,8 @@ typedef $$TasksTableUpdateCompanionBuilder =
       Value<String> note,
       Value<int> due,
       Value<int?> reminderBefore,
+      Value<int?> reminderTime,
+      Value<int?> notificationId,
       Value<bool> completed,
       Value<int> createdAt,
       Value<int> updatedAt,
@@ -619,6 +733,16 @@ class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
 
   ColumnFilters<int> get reminderBefore => $composableBuilder(
     column: $table.reminderBefore,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reminderTime => $composableBuilder(
+    column: $table.reminderTime,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get notificationId => $composableBuilder(
+    column: $table.notificationId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -677,6 +801,16 @@ class $$TasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get reminderTime => $composableBuilder(
+    column: $table.reminderTime,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get notificationId => $composableBuilder(
+    column: $table.notificationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get completed => $composableBuilder(
     column: $table.completed,
     builder: (column) => ColumnOrderings(column),
@@ -721,6 +855,16 @@ class $$TasksTableAnnotationComposer
 
   GeneratedColumn<int> get reminderBefore => $composableBuilder(
     column: $table.reminderBefore,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get reminderTime => $composableBuilder(
+    column: $table.reminderTime,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get notificationId => $composableBuilder(
+    column: $table.notificationId,
     builder: (column) => column,
   );
 
@@ -770,6 +914,8 @@ class $$TasksTableTableManager
                 Value<String> note = const Value.absent(),
                 Value<int> due = const Value.absent(),
                 Value<int?> reminderBefore = const Value.absent(),
+                Value<int?> reminderTime = const Value.absent(),
+                Value<int?> notificationId = const Value.absent(),
                 Value<bool> completed = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
@@ -780,6 +926,8 @@ class $$TasksTableTableManager
                 note: note,
                 due: due,
                 reminderBefore: reminderBefore,
+                reminderTime: reminderTime,
+                notificationId: notificationId,
                 completed: completed,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -792,6 +940,8 @@ class $$TasksTableTableManager
                 Value<String> note = const Value.absent(),
                 required int due,
                 Value<int?> reminderBefore = const Value.absent(),
+                Value<int?> reminderTime = const Value.absent(),
+                Value<int?> notificationId = const Value.absent(),
                 Value<bool> completed = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
@@ -802,6 +952,8 @@ class $$TasksTableTableManager
                 note: note,
                 due: due,
                 reminderBefore: reminderBefore,
+                reminderTime: reminderTime,
+                notificationId: notificationId,
                 completed: completed,
                 createdAt: createdAt,
                 updatedAt: updatedAt,

@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'data/app_database.dart';
 import 'task_item.dart';
+import 'services/notification_service.dart';
+import 'dart:math';
 
 /// EditTaskScreen
 /// - Accepts an existing TaskItem
@@ -130,6 +132,55 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     });
   }
 
+  //CUSTOM REMINDER LOGIC
+  Future<void> _pickCustomReminder() async {
+    final hoursCtrl = TextEditingController();
+    final minsCtrl = TextEditingController();
+
+    if (_selectedReminder != null) {
+      hoursCtrl.text = _selectedReminder!.inHours.toString();
+      minsCtrl.text = (_selectedReminder!.inMinutes % 60).toString();
+    }
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Set Reminder Before'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('How long before the due date?'),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(child: TextField(controller: hoursCtrl, keyboardType: TextInputType.number, textAlign: TextAlign.center, decoration: const InputDecoration(labelText: 'Hours', border: OutlineInputBorder()))),
+                const SizedBox(width: 10),
+                Expanded(child: TextField(controller: minsCtrl, keyboardType: TextInputType.number, textAlign: TextAlign.center, decoration: const InputDecoration(labelText: 'Minutes', border: OutlineInputBorder()))),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final h = int.tryParse(hoursCtrl.text) ?? 0;
+              final m = int.tryParse(minsCtrl.text) ?? 0;
+              if (h == 0 && m == 0) {
+                 setState(() => _selectedReminder = null);
+              } else {
+                 setState(() => _selectedReminder = Duration(hours: h, minutes: m));
+              }
+              Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: primary),
+            child: const Text('Set'),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _formatDateLabel(DateTime d) {
     final months = [
       'January','February','March','April','May','June','July','August','September','October','November','December'
@@ -137,13 +188,14 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     return '${d.day.toString().padLeft(2, '0')} ${months[d.month - 1]} ${d.year}';
   }
 
-  // String _formatTimeLabel(TimeOfDay t) {
-  //   final hour = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
-  //   final min = t.minute.toString().padLeft(2, '0');
-  //   final ampm = t.period == DayPeriod.am ? 'AM' : 'PM';
-  //   return '$hour:$min $ampm';
-  // }
+  String _formatTimeLabel(TimeOfDay t) {
+    final hour = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
+    final min = t.minute.toString().padLeft(2, '0');
+    final ampm = t.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$hour:$min $ampm';
+  }
 
+  // Save Logic
   Future<void> _onSavePressed() async {
     if (!_hasChanges || _isSaving) return;
     if (_titleCtrl.text.trim().isEmpty) {
@@ -153,27 +205,56 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
 
     setState(() => _isSaving = true);
 
-    final newDue = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-      _selectedTime.hour,
-      _selectedTime.minute,
-    );
-
-    final edited = widget.task.copyWith(
-      title: _titleCtrl.text.trim(),
-      note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
-      due: newDue,
-      reminderBefore: _selectedReminder,
-    );
-
     try {
+      final newDue = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        _selectedTime.hour,
+        _selectedTime.minute,
+      );
+
+      // 1. CANCEL OLD NOTIFICATION IF EXISTS
+      // We always cancel the old one to be safe, because the time or ID might change.
+      if (widget.task.notificationId != null) {
+        await NotificationService().cancelNotification(widget.task.notificationId!);
+      }
+
+      // 2. SCHEDULE NEW NOTIFICATION (If reminder is set)
+      DateTime? newReminderTime;
+      int? newNotificationId;
+
+      if (_selectedReminder != null) {
+        newReminderTime = newDue.subtract(_selectedReminder!);
+        
+        // Try to keep the old ID if possible to avoid ID exhaustion, 
+        // otherwise generate a new one.
+        newNotificationId = widget.task.notificationId ?? Random().nextInt(100000000);
+
+        await NotificationService().scheduleReminder(
+          id: newNotificationId,
+          title: "Reminder: ${_titleCtrl.text.trim()}",
+          body: "Due at ${_formatTimeLabel(_selectedTime)}",
+          scheduledTime: newReminderTime,
+          payload: newNotificationId.toString(),
+        );
+      }
+      // 3. CREATE EDITED TASK
+      final edited = widget.task.copyWith(
+        title: _titleCtrl.text.trim(),
+        note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
+        due: newDue,
+        reminderBefore: _selectedReminder,
+        reminderTime: newReminderTime,
+        notificationId: newNotificationId,
+      );
+
       if (widget.onSave != null) {
         await widget.onSave!(edited);
       }
       // close screen and return edited task to caller
       if (mounted) Navigator.of(context).pop(edited);
+
     } catch (e) {
       if (!mounted) return;
       // show error
@@ -202,6 +283,13 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     );
     if (!mounted) return;
     if (confirm == true) {
+      // 1. Cancel the notification before deleting
+      if (widget.task.notificationId != null) {
+        await NotificationService().cancelNotification(widget.task.notificationId!);
+      }
+
+      if (!mounted) return;
+      
       if (widget.onDelete != null) widget.onDelete!();
       Navigator.of(context).pop(); // close screen after delete
     }
@@ -235,6 +323,55 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(label, style: TextStyle(color: active ? Colors.white : Colors.black87, fontWeight: FontWeight.w700)),
+      ),
+    );
+  }
+
+  Widget _customReminderChip() {
+    final isStandard = [
+      const Duration(hours: 1),
+      const Duration(days: 1),
+      const Duration(days: 3),
+      const Duration(days: 7)
+    ].contains(_selectedReminder);
+
+    final isCustomSelected = _selectedReminder != null && !isStandard;
+
+    String label = 'Custom';
+    if (isCustomSelected) {
+      final h = _selectedReminder!.inHours;
+      final m = _selectedReminder!.inMinutes % 60;
+      if (h > 0 && m > 0) {
+        label = '${h}h ${m}m';
+      } else if (h > 0) {
+        label = '${h}h';
+      } else {
+        label = '${m}m';
+      }
+    }
+
+    return GestureDetector(
+      onTap: _pickCustomReminder,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isCustomSelected ? primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.black54),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: TextStyle(
+              color: isCustomSelected ? Colors.white : Colors.black87, 
+              fontWeight: FontWeight.w700
+            )),
+            if (isCustomSelected) ...[
+              const SizedBox(width: 4),
+              const Icon(Icons.edit, size: 14, color: Colors.white),
+            ]
+          ],
+        ),
       ),
     );
   }
@@ -306,8 +443,8 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
 
                       const SizedBox(height: 18),
 
-                      // When?
-                      const Text('When?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                      // Date
+                      const Text('Date', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                       const SizedBox(height: 8),
                       Row(
                         children: [
@@ -344,6 +481,8 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                           _reminderChip('1 Day', const Duration(days: 1)),
                           _reminderChip('3 Days', const Duration(days: 3)),
                           _reminderChip('7 Days', const Duration(days: 7)),
+                          //custom input option
+                          _customReminderChip(),
                         ],
                       ),
 

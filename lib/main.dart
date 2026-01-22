@@ -9,9 +9,17 @@ import 'help_screen.dart';
 import 'settings.dart';
 import 'services/tts_service.dart';
 import 'services/tts_helpers.dart';
+import 'package:timezone/data/latest.dart' as tz; // <--- 1. ADD IMPORT
+import 'package:timezone/timezone.dart' as tzi;
+import 'services/notification_service.dart';
 import 'dart:math';
 
-void main() {
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  tz.initializeTimeZones();
+  // Initialize Notifications
+  await NotificationService().init();
   runApp(const EasyCareApp());
 }
 
@@ -236,6 +244,7 @@ class _TaskListHomeState extends State<TaskListHome> {
       if (newTask != null) {
         // Insert into DB. The DB generates a new ID, ignoring the temporary one from AddTaskPage.
         await _db.insertTaskItem(newTask);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Task added')));
       }
     } finally {
@@ -369,7 +378,23 @@ class _TaskListHomeState extends State<TaskListHome> {
   }
 
   Widget _buildTaskCard(TaskItem t) {
-    final badgeText = _reminderLabel(t.reminderBefore);
+    // final badgeText = _reminderLabel(t.reminderBefore);
+    String badgeText = '';
+    
+    if (t.reminderTime != null) {
+      // Format it nicely: "22/1 14:30"
+      final dt = t.reminderTime!;
+      final dateStr = '${dt.day}/${dt.month}';
+      final hour12 = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+      final minute = dt.minute.toString().padLeft(2, '0');
+      final period = dt.hour >= 12 ? 'PM' : 'AM';
+      final timeStr = '$hour12:$minute $period';
+      badgeText = '$dateStr $timeStr'; 
+    } 
+    else if (t.reminderBefore != null) {
+      // Fallback: If for some reason time is null but duration isn't
+      badgeText = _reminderLabel(t.reminderBefore);
+    }
     return Card(
       elevation: 0,
       clipBehavior: Clip.antiAlias, // Required for InkWell ripple effect
@@ -503,6 +528,17 @@ class _TaskListHomeState extends State<TaskListHome> {
             },
           ),
         ]),
+        // Example AppBar action (add to AppBar actions list in TaskListHome)
+        IconButton(
+          icon: const Icon(Icons.bug_report),
+          tooltip: 'Debug notifications',
+          onPressed: () async {
+            await NotificationService().debugPending();
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Checked pending notifications — see log.')));
+          }
+        ),
+
         _buildSearchBar(),
         const SizedBox(height: 6),
         _buildSortControl(),

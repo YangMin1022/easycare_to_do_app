@@ -1,6 +1,9 @@
 // lib/add_task_page.dart
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'data/app_database.dart';
+import 'services/notification_service.dart';
 import 'task_item.dart';
 /// Replace or expand with domain model / DB ID later.
 /// AddTaskPage - supports Voice and Type modes.
@@ -47,6 +50,11 @@ class _AddTaskPageState extends State<AddTaskPage> {
     _selectedDate = DateTime(now.year, now.month, now.day);
     _selectedTime = const TimeOfDay(hour: 9, minute: 0);
     _selectedReminder = const Duration(hours: 1);
+
+    // Check/Request permissions on load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationService().requestPermissions(context);
+    });
   }
 
   @override
@@ -83,56 +91,130 @@ class _AddTaskPageState extends State<AddTaskPage> {
     setState(() => _isSaving = true);
 
     try {
+      String title = '';
+      String note = '';
       if (_mode == AddMode.voice) {
         if (_transcript.trim().isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please provide a transcript or use Type mode.')));
           return;
         }
-        final due = DateTime(
-          _selectedDate!.year,
-          _selectedDate!.month,
-          _selectedDate!.day,
-          _selectedTime!.hour,
-          _selectedTime!.minute,
-        );
-        final newId = DateTime.now().millisecondsSinceEpoch.toString();
-        final task = TaskItem(
-          id: newId,
-          title: _transcript.trim(), 
-          note: _noteController.text.trim(), 
-          due: due, 
-          reminderBefore: _selectedReminder, 
-          createdAt: DateTime.now(), 
-          updatedAt: DateTime.now(),
-        );
-        if (!mounted) return;
-        Navigator.of(context).pop(task);
-      } else {
-        final title = _titleController.text.trim();
-        if (title.isEmpty) {
+        title = _transcript.trim();
+        note = _noteController.text.trim();
+        // final due = DateTime(
+        //   _selectedDate!.year,
+        //   _selectedDate!.month,
+        //   _selectedDate!.day,
+        //   _selectedTime!.hour,
+        //   _selectedTime!.minute,
+        // );
+        // final newId = DateTime.now().millisecondsSinceEpoch.toString();
+        // final task = TaskItem(
+        //   id: newId,
+        //   title: _transcript.trim(), 
+        //   note: _noteController.text.trim(), 
+        //   due: due, 
+        //   reminderBefore: _selectedReminder, 
+        //   createdAt: DateTime.now(), 
+        //   updatedAt: DateTime.now(),
+        // );
+        // if (!mounted) return;
+        // Navigator.of(context).pop(task);
+      } else { // AddMode.type
+        // final title = _titleController.text.trim();
+        if (_titleController.text.trim().isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a task title.')));
           return;
         }
-        final due = DateTime(
+        title = _titleController.text.trim();
+        note = _noteController.text.trim();
+
+      //   final due = DateTime(
+      //     _selectedDate!.year,
+      //     _selectedDate!.month,
+      //     _selectedDate!.day,
+      //     _selectedTime!.hour,
+      //     _selectedTime!.minute,
+      //   );
+      //   // --- 1. CALCULATE REMINDER LOGIC ---
+      // DateTime? reminderTime;
+      // int? notificationId;
+
+      // if (_selectedReminder != null) {
+      //   reminderTime = due.subtract(_selectedReminder!);
+        
+      //   // Generate a safe 32-bit Integer ID for Android Notification System
+      //   notificationId = Random().nextInt(100000000); 
+
+      //   // Schedule it immediately
+      //   await NotificationService().scheduleReminder(
+      //     id: notificationId,
+      //     title: "Reminder: $title",
+      //     body: "Due at ${_timeLabel()}",
+      //     scheduledTime: reminderTime,
+      //     payload: notificationId.toString(), // Store ID in payload for navigation later
+      //   );
+      // }
+      //   final newId = DateTime.now().millisecondsSinceEpoch.toString();
+      //   final task = TaskItem(
+      //     id: newId,
+      //     title: title,
+      //     note: _noteController.text.trim().isEmpty ? '' : _noteController.text.trim(),
+      //     due: due,
+      //     reminderBefore: _selectedReminder,
+      //     reminderTime: reminderTime,
+      //     notificationId: notificationId,
+      //     createdAt: DateTime.now(),
+      //     updatedAt: DateTime.now(),
+      //   );
+      //   if (!mounted) return;
+      //   Navigator.of(context).pop(task);
+      }
+      //DATE SETUP
+      final due = DateTime(
           _selectedDate!.year,
           _selectedDate!.month,
           _selectedDate!.day,
           _selectedTime!.hour,
           _selectedTime!.minute,
         );
-        final newId = DateTime.now().millisecondsSinceEpoch.toString();
-        final task = TaskItem(
-          id: newId,
-          title: title,
-          note: _noteController.text.trim().isEmpty ? '' : _noteController.text.trim(),
-          due: due,
-          reminderBefore: _selectedReminder,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
+      //CALCULATE REMINDER LOGIC
+      DateTime? reminderTime;
+      int? notificationId;
+
+      if (_selectedReminder != null) {
+        reminderTime = due.subtract(_selectedReminder!);
+        
+        // Generate a safe 32-bit Integer ID for Android Notification System
+        notificationId = Random().nextInt(100000000); 
+
+        // Schedule it
+        await NotificationService().scheduleReminder(
+          id: notificationId,
+          title: "Reminder: $title",
+          body: "Due at ${_timeLabel()}",
+          scheduledTime: reminderTime,
+          payload: notificationId.toString(), // Store ID in payload for navigation later
         );
-        if (!mounted) return;
-        Navigator.of(context).pop(task);
       }
+      //Task Item
+      final newId = DateTime.now().millisecondsSinceEpoch.toString();
+      final task = TaskItem(
+        id: newId,
+        title: title,
+        note: note,
+        // note: _noteController.text.trim().isEmpty ? '' : _noteController.text.trim(),
+        due: due,
+        reminderBefore: _selectedReminder,
+        reminderTime: reminderTime,
+        notificationId: notificationId,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop(task);
+    } catch (e) {
+      debugPrint("Save error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error saving task')));
     } finally {
       // We leave the page after pop; but reset flag if user didn't pop
       if (mounted) {
@@ -373,6 +455,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
                 _reminderChip('3 Days', const Duration(days: 3)),
                 _reminderChip('7 Days', const Duration(days: 7)),
                 // Add custom input option if needed
+                _customReminderChip(),
               ],
             ),
           ],
@@ -400,6 +483,138 @@ class _AddTaskPageState extends State<AddTaskPage> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(color: isSelected ? _primary : Colors.transparent, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.black54)),
         child: Text(label, style: TextStyle(color: isSelected ? Colors.white : Colors.black87, fontWeight: FontWeight.w600)),
+      ),
+    );
+  }
+
+  // 1. The Widget for the Custom Chip
+  Widget _customReminderChip() {
+    // Check if the current selection is one of the standard presets
+    final isStandard = [
+      const Duration(hours: 1),
+      const Duration(days: 1),
+      const Duration(days: 3),
+      const Duration(days: 7)
+    ].contains(_selectedReminder);
+
+    // If it's not standard and not null, it must be custom
+    final isCustomSelected = _selectedReminder != null && !isStandard;
+
+    // Logic to show a nice label like "Custom (2h 30m)"
+    String label = 'Custom';
+    if (isCustomSelected) {
+      final h = _selectedReminder!.inHours;
+      final m = _selectedReminder!.inMinutes % 60;
+      if (h > 0 && m > 0) {
+        label = '${h}h ${m}m';
+      } else if (h > 0) {
+        label = '${h}h';
+      } else {
+        label = '${m}m';
+      }
+    }
+
+    return GestureDetector(
+      onTap: _pickCustomReminder, // Opens the dialog
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isCustomSelected ? _primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.black54),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: TextStyle(
+              color: isCustomSelected ? Colors.white : Colors.black87, 
+              fontWeight: FontWeight.w600
+            )),
+            if (isCustomSelected) ...[
+              const SizedBox(width: 4),
+              const Icon(Icons.edit, size: 14, color: Colors.white),
+            ]
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 2. The Dialog Logic to pick Hours/Minutes
+  Future<void> _pickCustomReminder() async {
+    final hoursCtrl = TextEditingController();
+    final minsCtrl = TextEditingController();
+
+    // Pre-fill if we already have a custom value
+    if (_selectedReminder != null) {
+      hoursCtrl.text = _selectedReminder!.inHours.toString();
+      minsCtrl.text = (_selectedReminder!.inMinutes % 60).toString();
+    }
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Set Reminder Before'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('How long before the due date?'),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                // Hours Input
+                Expanded(
+                  child: TextField(
+                    controller: hoursCtrl,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    decoration: const InputDecoration(
+                      labelText: 'Hours',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Minutes Input
+                Expanded(
+                  child: TextField(
+                    controller: minsCtrl,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    decoration: const InputDecoration(
+                      labelText: 'Minutes',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final h = int.tryParse(hoursCtrl.text) ?? 0;
+              final m = int.tryParse(minsCtrl.text) ?? 0;
+              
+              if (h == 0 && m == 0) {
+                // If user entered 0, maybe clear reminder or do nothing
+                setState(() => _selectedReminder = null);
+              } else {
+                setState(() {
+                  _selectedReminder = Duration(hours: h, minutes: m);
+                });
+              }
+              Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: _primary),
+            child: const Text('Set'),
+          ),
+        ],
       ),
     );
   }

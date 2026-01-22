@@ -1,5 +1,6 @@
 // lib/settings.dart
 import 'package:flutter/material.dart';
+import 'services/notification_service.dart';
 import 'services/tts_service.dart';
 
 const Color kPrimaryBlue = Color(0xFF0A6CF0);
@@ -73,9 +74,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _fontSize = opt);
   }
 
-  void _sendTestNotification() {
+  // 1. Add this function inside _SettingsScreenState
+  void _testScheduledNotification() async {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Scheduling for 5 seconds... wait for it!')));
+    
+    // Get current time + 5 seconds
+    final now = DateTime.now().add(const Duration(seconds: 5));
+    
+    await NotificationService().scheduleReminder(
+      id: 888, 
+      title: "Scheduled Test", 
+      body: "If you see this, scheduling WORKS!", 
+      scheduledTime: now,
+    );
+  }
+  
+  void _sendTestNotification() async{
+    // ScaffoldMessenger.of(context).showSnackBar(
+    //   const SnackBar(content: Text('Test notification (demo)')),
+    // );
+    // 1. Trigger the actual notification
+    await NotificationService().showInstantNotification(
+      title: 'Test Notification',
+      body: 'This is a test message from EasyCare.',
+    );
+
+    // 2. Show a SnackBar to confirm the action
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Test notification (demo)')),
+      const SnackBar(content: Text('Notification sent! Check your status bar.')),
     );
   }
 
@@ -218,6 +245,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       elevation: 0,
                     ),
+                  ),
+                ),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton( // Use OutlinedButton to distinguish it
+                    onPressed: _testScheduledNotification,
+                    child: const Text('Test 5-Second Delay'),
                   ),
                 ),
 
