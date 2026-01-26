@@ -49,9 +49,10 @@ class _Design {
   static const Color accentGreen = Color(0xFF16A34A);
   static const Color surface = Color(0xFFF4F6F8);
   static const double horizontalPadding = 16.0;
-  static const double headlineSize = 22.0;
-  static const double bodySize = 18.0;
-  static const double smallSize = 14.0;
+  static const double headlineSize = 24.0;
+  static const double headlineSizeSmall = 22.0;
+  static const double bodySize = 22.0;
+  static const double smallSize = 20.0;
   static const double actionHeight = 56.0;
 }
 
@@ -88,7 +89,12 @@ class _OnboardingThenHomeState extends State<OnboardingThenHome> {
     super.dispose();
   }
 
-  Widget _buildSkipButton() => TextButton(onPressed: _goToHome, child: const Text('Skip', style: TextStyle(color: Colors.black87)));
+  Widget _buildSkipButton() => TextButton(onPressed: _goToHome, 
+  style: TextButton.styleFrom(
+  // Increases the touch area size
+  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+  ),
+  child: const Text('Skip', style: TextStyle(color: Colors.black87, fontSize: 24, fontWeight: FontWeight.w500)));
 
   Widget _buildPageIndicator() {
     Widget dot(bool active) => Container(
@@ -158,17 +164,19 @@ class SimpleOnboardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(children: [
-      const SizedBox(height: 12),
-      Semantics(label: title, child: CircleAvatar(radius: 44, backgroundColor: Colors.white, child: CircleAvatar(radius: 34, backgroundColor: _Design.surface, child: Icon(icon, size: 36, color: _Design.primary)))),
-      const SizedBox(height: 26),
-      Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: _Design.headlineSize)),
-      const SizedBox(height: 14),
-      ...bullets.map((b) => Padding(padding: const EdgeInsets.symmetric(vertical: 8.0), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Icon(Icons.check_circle, color: _Design.accentGreen, size: 24),
-            const SizedBox(width: 12),
-            Expanded(child: Text(b, style: const TextStyle(fontSize: _Design.bodySize, height: 1.35, color: Colors.black87))),
-          ]))),
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const SizedBox(height: 12),
+        Semantics(label: title, child: CircleAvatar(radius: 60, backgroundColor: Colors.white, child: CircleAvatar(radius: 50, backgroundColor: _Design.surface, child: Icon(icon, size: 60, color: _Design.primary)))),
+        const SizedBox(height: 26),
+        Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: _Design.headlineSize)),
+        const SizedBox(height: 14),
+        ...bullets.map((b) => Padding(padding: const EdgeInsets.symmetric(vertical: 8.0), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(Icons.check_circle, color: _Design.accentGreen, size: 24),
+              const SizedBox(width: 12),
+              Expanded(child: Text(b, style: const TextStyle(fontSize: _Design.headlineSizeSmall, height: 1.35, color: Colors.black87))),
+            ]))),
     ]);
   }
 }
@@ -360,7 +368,7 @@ class _TaskListHomeState extends State<TaskListHome> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(color: _sortBy == SortBy.due ? _Design.primary : Colors.transparent, borderRadius: BorderRadius.circular(8)),
-              child: Text('Due', style: TextStyle(color: _sortBy == SortBy.due ? Colors.white : Colors.black87)),
+              child: Text('Due', style: TextStyle(color: _sortBy == SortBy.due ? Colors.white : Colors.black87, fontSize: _Design.smallSize)),
             ),
           ),
           const SizedBox(width: 6),
@@ -369,7 +377,7 @@ class _TaskListHomeState extends State<TaskListHome> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(color: _sortBy == SortBy.title ? _Design.primary : Colors.transparent, borderRadius: BorderRadius.circular(8)),
-              child: Text('Title', style: TextStyle(color: _sortBy == SortBy.title ? Colors.white : Colors.black87)),
+              child: Text('Title', style: TextStyle(color: _sortBy == SortBy.title ? Colors.white : Colors.black87, fontSize: _Design.smallSize)),
             ),
           )
         ]),
@@ -421,7 +429,7 @@ class _TaskListHomeState extends State<TaskListHome> {
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Expanded(child: Text(t.title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, decoration: t.completed ? TextDecoration.lineThrough : null))),
+                  Expanded(child: Text(t.title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, decoration: t.completed ? TextDecoration.lineThrough : null))),
                   const SizedBox(width: 8),
                   // edit icon
                   IconButton(
@@ -430,12 +438,12 @@ class _TaskListHomeState extends State<TaskListHome> {
                   ),
                 ]),
                 const SizedBox(height: 6),
-                Text(t.note, style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                Text(t.note, style: const TextStyle(fontSize: 16, color: Colors.black54)),
                 const SizedBox(height: 10),
                 Row(children: [
                   Icon(Icons.schedule, size: 16, color: Colors.black54),
                   const SizedBox(width: 6),
-                  Text(_formatDate(t.due), style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                  Text(_formatDate(t.due), style: const TextStyle(fontSize: 15, color: Colors.black54)),
                   const SizedBox(width: 10),
                   if (badgeText.isNotEmpty)
                     Container(
@@ -444,7 +452,7 @@ class _TaskListHomeState extends State<TaskListHome> {
                       child: Row(children: [
                         const Icon(Icons.notifications_active, size: 16, color: Colors.orange),
                         const SizedBox(width: 6),
-                        Text(badgeText, style: TextStyle(fontSize: 13, color: Colors.black87)),
+                        Text(badgeText, style: TextStyle(fontSize: 15, color: Colors.black87)),
                       ]),
                     ),
                 ])
@@ -480,13 +488,14 @@ class _TaskListHomeState extends State<TaskListHome> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: _Design.horizontalPadding),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const SizedBox(height: 6),
+        const SizedBox(height: 40),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text("Today's Tasks", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+          Text("Today's Tasks", style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800)),
           ValueListenableBuilder<bool>(
             valueListenable: TtsService().isSpeakingNotifier,
             builder: (context, isSpeaking, child) {
               return IconButton(
+                iconSize: 36,
                 onPressed: () async {
                   // If currently speaking, this will STOP it.
                   // If stopped, this will START it.
@@ -540,10 +549,10 @@ class _TaskListHomeState extends State<TaskListHome> {
         ),
 
         _buildSearchBar(),
-        const SizedBox(height: 6),
-        _buildSortControl(),
         const SizedBox(height: 12),
-        const Text('To Do', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        _buildSortControl(),
+        const SizedBox(height: 14),
+        const Text('To Do', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
         // Expanded ListView
         Expanded(

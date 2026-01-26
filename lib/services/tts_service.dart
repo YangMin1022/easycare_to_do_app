@@ -76,7 +76,7 @@ class TtsService {
 
   // Update and Save Rate
   Future<void> setSpeechRate(double rate) async {
-    _speechRate = rate.clamp(0.0, 1.0);
+    _speechRate = rate.clamp(0.0, 1.2);
     await _tts.setSpeechRate(_speechRate);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('tts_rate', _speechRate);

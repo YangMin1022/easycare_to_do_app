@@ -42,7 +42,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!mounted) return;
     setState(() {
       _ttsSpeed = _tts.speechRate;
-      _ttsVolume = _tts.volume;
+      _ttsVolume = _tts.volume * 100;
       _isLoading = false;
     });
   }
@@ -174,9 +174,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const Text('Voice Speed', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
                 _LabeledSlider(
-                  min: 0.5,
-                  max: 2.0,
-                  divisions: 15,
+                  min: 0.1,
+                  max: 1.2,
+                  divisions: 11,
                   value: _ttsSpeed,
                   onChanged: (v) {
                     setState(() => _ttsSpeed = v);
@@ -197,7 +197,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: _ttsVolume,
                   onChanged: (v) {
                     setState(() => _ttsVolume = v);
-                    _tts.setVolume(v); // Update Service
+                    _tts.setVolume(v/100); // Update Service
                   },
                   leftLabel: 'Quiet',
                   rightLabel: 'Loud',
