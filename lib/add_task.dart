@@ -321,6 +321,9 @@ class _AddTaskPageState extends State<AddTaskPage> {
   Widget _voiceView() {
     return Expanded(
       child: Column(
+        // Centers children vertically & horizontally
+        mainAxisAlignment: MainAxisAlignment.center, 
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           const SizedBox(height: 20),
           // Large circle mic
@@ -331,7 +334,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
               child: CircleAvatar(
                 radius: 44,
                 backgroundColor: _isListening ? _primary : _surface,
-                child: Icon(Icons.mic, color: _isListening ? Colors.white : _primary, size: 36),
+                child: Icon(Icons.mic, color: _isListening ? Colors.white : _primary, size: 60),
               ),
             ),
           ),
