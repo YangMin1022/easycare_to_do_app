@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'data/app_database.dart';
 import 'services/notification_service.dart';
+import 'services/speech_service.dart';
 import 'task_item.dart';
 /// Replace or expand with domain model / DB ID later.
 /// AddTaskPage - supports Voice and Type modes.
@@ -29,6 +30,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
   // Voice mode
   String _transcript = '';
   bool _isListening = false;
+  bool _speechEnabled = false;
 
   // Type mode fields
   final TextEditingController _titleController = TextEditingController();
@@ -45,6 +47,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
   @override
   void initState() {
     super.initState();
+    _initServices();
     // default due date = today at 09:00
     final now = DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
@@ -52,9 +55,35 @@ class _AddTaskPageState extends State<AddTaskPage> {
     _selectedReminder = const Duration(hours: 1);
 
     // Check/Request permissions on load
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   NotificationService().requestPermissions(context);
+    // });
+  }
+
+  /// Initialize all external services
+  Future<void> _initServices() async {
+    // 1. Notifications
     WidgetsBinding.instance.addPostFrameCallback((_) {
       NotificationService().requestPermissions(context);
     });
+
+    // 2. Speech Service
+    _speechEnabled = await SpeechService().init(
+      onStatus: (status) {
+        // Auto-update UI state based on engine status
+        if (status == 'listening') {
+          setState(() => _isListening = true);
+        } else if (status == 'notListening' || status == 'done') {
+          setState(() => _isListening = false);
+        }
+      },
+      onError: (errorMsg) {
+        setState(() => _isListening = false);
+        debugPrint('Speech Error in UI: $errorMsg');
+      },
+    );
+    // Refresh UI to show Mic status
+    if (mounted) setState(() {});
   }
 
   @override
@@ -64,24 +93,28 @@ class _AddTaskPageState extends State<AddTaskPage> {
     super.dispose();
   }
 
-  /// Placeholder: integrate with speech_to_text or platform dictation here.
+  /// Toggle Dictation using the Service
   Future<void> _startOrStopDictation() async {
-    setState(() {
-      _isListening = !_isListening;
-    });
+    if (!_speechEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Speech recognition not available.')),
+      );
+      return;
+    }
 
     if (_isListening) {
-      // Start speech capture. Replace with actual speech plugin start.
-      // Example with speech_to_text:
-      // await _speech.listen(onResult: (r) => setState(()=>_transcript=r.recognizedWords));
-      // For now we simulate:
-      await Future.delayed(const Duration(seconds: 1));
-      setState(() {
-        _transcript = 'Take medication at 8 AM';
-      });
+      await SpeechService().stop();
+      setState(() => _isListening = false);
     } else {
-      // Stop speech capture. Replace with plugin stop.
-      // await _speech.stop();
+      // Clear previous transcript if you want a fresh start
+      // setState(() => _transcript = ''); 
+      
+      await SpeechService().startListening(
+        onResult: (text) {
+          setState(() => _transcript = text);
+        },
+      );
+      setState(() => _isListening = true);
     }
   }
 
@@ -100,25 +133,6 @@ class _AddTaskPageState extends State<AddTaskPage> {
         }
         title = _transcript.trim();
         note = _noteController.text.trim();
-        // final due = DateTime(
-        //   _selectedDate!.year,
-        //   _selectedDate!.month,
-        //   _selectedDate!.day,
-        //   _selectedTime!.hour,
-        //   _selectedTime!.minute,
-        // );
-        // final newId = DateTime.now().millisecondsSinceEpoch.toString();
-        // final task = TaskItem(
-        //   id: newId,
-        //   title: _transcript.trim(), 
-        //   note: _noteController.text.trim(), 
-        //   due: due, 
-        //   reminderBefore: _selectedReminder, 
-        //   createdAt: DateTime.now(), 
-        //   updatedAt: DateTime.now(),
-        // );
-        // if (!mounted) return;
-        // Navigator.of(context).pop(task);
       } else { // AddMode.type
         // final title = _titleController.text.trim();
         if (_titleController.text.trim().isEmpty) {
@@ -127,47 +141,6 @@ class _AddTaskPageState extends State<AddTaskPage> {
         }
         title = _titleController.text.trim();
         note = _noteController.text.trim();
-
-      //   final due = DateTime(
-      //     _selectedDate!.year,
-      //     _selectedDate!.month,
-      //     _selectedDate!.day,
-      //     _selectedTime!.hour,
-      //     _selectedTime!.minute,
-      //   );
-      //   // --- 1. CALCULATE REMINDER LOGIC ---
-      // DateTime? reminderTime;
-      // int? notificationId;
-
-      // if (_selectedReminder != null) {
-      //   reminderTime = due.subtract(_selectedReminder!);
-        
-      //   // Generate a safe 32-bit Integer ID for Android Notification System
-      //   notificationId = Random().nextInt(100000000); 
-
-      //   // Schedule it immediately
-      //   await NotificationService().scheduleReminder(
-      //     id: notificationId,
-      //     title: "Reminder: $title",
-      //     body: "Due at ${_timeLabel()}",
-      //     scheduledTime: reminderTime,
-      //     payload: notificationId.toString(), // Store ID in payload for navigation later
-      //   );
-      // }
-      //   final newId = DateTime.now().millisecondsSinceEpoch.toString();
-      //   final task = TaskItem(
-      //     id: newId,
-      //     title: title,
-      //     note: _noteController.text.trim().isEmpty ? '' : _noteController.text.trim(),
-      //     due: due,
-      //     reminderBefore: _selectedReminder,
-      //     reminderTime: reminderTime,
-      //     notificationId: notificationId,
-      //     createdAt: DateTime.now(),
-      //     updatedAt: DateTime.now(),
-      //   );
-      //   if (!mounted) return;
-      //   Navigator.of(context).pop(task);
       }
       //DATE SETUP
       final due = DateTime(
@@ -333,13 +306,13 @@ class _AddTaskPageState extends State<AddTaskPage> {
               onTap: _startOrStopDictation,
               child: CircleAvatar(
                 radius: 44,
-                backgroundColor: _isListening ? _primary : _surface,
+                backgroundColor: _isListening ? Colors.redAccent : (_speechEnabled ? _primary : _surface),
                 child: Icon(Icons.mic, color: _isListening ? Colors.white : _primary, size: 60),
               ),
             ),
           ),
           const SizedBox(height: 12),
-          Text(_isListening ? 'Listening...' : 'Tap to speak', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          Text(_isListening ? 'Listening...' : (_speechEnabled ? 'Tap to speak' : 'Mic unavailable'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           Text(
             'Tap the microphone and speak your task',
@@ -407,7 +380,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
               ),
             ),
             const SizedBox(height: 18),
-            const Text('When?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            const Text('Date?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             Row(
               children: [
