@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'data/app_database.dart';
 import 'services/notification_service.dart';
 import 'services/speech_service.dart';
+import 'utils/smart_parser.dart';
 import 'task_item.dart';
 /// Replace or expand with domain model / DB ID later.
 /// AddTaskPage - supports Voice and Type modes.
@@ -105,10 +106,13 @@ class _AddTaskPageState extends State<AddTaskPage> {
     if (_isListening) {
       await SpeechService().stop();
       setState(() => _isListening = false);
+      // --- NEW: Apply Smart Parsing when stopping ---
+      _applySmartParsing(_transcript);
     } else {
       // Clear previous transcript if you want a fresh start
       // setState(() => _transcript = ''); 
-      
+      // START LISTENING
+      setState(() => _isListening = true);
       await SpeechService().startListening(
         onResult: (text) {
           setState(() => _transcript = text);
@@ -116,6 +120,42 @@ class _AddTaskPageState extends State<AddTaskPage> {
       );
       setState(() => _isListening = true);
     }
+  }
+
+  /// Helper to apply parsed data to UI controllers
+  void _applySmartParsing(String rawText) {
+    if (rawText.trim().isEmpty) return;
+
+    final data = SmartParser.parse(rawText);
+
+    setState(() {
+      // 1. Auto-fill Title
+      _transcript = data.title; // Update the transcript view
+      _titleController.text = data.title; // Also sync Type mode controller just in case
+
+      // 2. Auto-set Date (if found)
+      if (data.date != null) {
+        _selectedDate = data.date;
+      }
+
+      // 3. Auto-set Time (if found)
+      if (data.time != null) {
+        _selectedTime = data.time;
+      }
+      
+      // 4. Auto-set Reminder (if found)
+      if (data.reminder != null) {
+         _selectedReminder = data.reminder;
+      }
+    });
+
+    // Optional feedback
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Smart set: ${data.date != null ? "Date updated. " : ""}${data.time != null ? "Time updated." : ""}'),
+        duration: const Duration(seconds: 1),
+      )
+    );
   }
 
   /// Save action - validate and return TaskItem

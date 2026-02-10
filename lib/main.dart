@@ -308,7 +308,7 @@ class _TaskListHomeState extends State<TaskListHome> {
           onDelete: (task) async {
             await _db.deleteTaskByStringId(task.id);
             if(mounted) {
-                Navigator.pop(context);
+                // Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Deleted ${task.title}'))
                 );

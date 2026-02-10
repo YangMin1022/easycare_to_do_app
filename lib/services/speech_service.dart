@@ -62,7 +62,7 @@ class SpeechService {
         partialResults: true,      // Stream words as spoken
         listenMode: stt.ListenMode.dictation,
       ),
-      pauseFor: const Duration(seconds: 3), // Auto-stop after silence
+      pauseFor: const Duration(seconds: 5), // Auto-stop after silence
     );
   }
 
