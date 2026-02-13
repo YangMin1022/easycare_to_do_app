@@ -2,6 +2,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'data/app_database.dart';
 import 'services/notification_service.dart';
 import 'services/speech_service.dart';
@@ -36,6 +37,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
   // Type mode fields
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
+  late TextEditingController _transcriptController;
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   Duration? _selectedReminder; // e.g., Duration(hours:1)
@@ -54,6 +56,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     _selectedDate = DateTime(now.year, now.month, now.day);
     _selectedTime = const TimeOfDay(hour: 9, minute: 0);
     _selectedReminder = const Duration(hours: 1);
+    _transcriptController = TextEditingController(text: _transcript);
 
     // Check/Request permissions on load
     // WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -89,8 +92,10 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
   @override
   void dispose() {
+    _transcriptController.dispose();
     _titleController.dispose();
     _noteController.dispose();
+    SpeechService().cancel();
     super.dispose();
   }
 
@@ -114,8 +119,21 @@ class _AddTaskPageState extends State<AddTaskPage> {
       // START LISTENING
       setState(() => _isListening = true);
       await SpeechService().startListening(
+        // onResult: (text) {
+        //   setState(() => _transcript = text);
+        // },
         onResult: (text) {
-          setState(() => _transcript = text);
+          setState(() {
+            _transcript = text;
+            
+            // Update the controller so the text appears in the box
+            _transcriptController.text = text;
+            
+            // OPTIONAL: Move cursor to the end so user can type immediately after
+            _transcriptController.selection = TextSelection.fromPosition(
+              TextPosition(offset: _transcriptController.text.length)
+            );
+          });
         },
       );
       setState(() => _isListening = true);
@@ -259,10 +277,10 @@ class _AddTaskPageState extends State<AddTaskPage> {
     return picked;
   }
 
-  Future<TimeOfDay?> _showTimePickerFallback(BuildContext context, TimeOfDay initialTime) async {
-    final picked = await showTimePicker(context: context, initialTime: initialTime);
-    return picked;
-  }
+  // Future<TimeOfDay?> _showTimePickerFallback(BuildContext context, TimeOfDay initialTime) async {
+  //   final picked = await showTimePicker(context: context, initialTime: initialTime);
+  //   return picked;
+  // }
 
   /// Wrapper that tries to call custom picker; otherwise fallback.
   /// Replace the body to call custom pickers.
@@ -276,13 +294,76 @@ class _AddTaskPageState extends State<AddTaskPage> {
     }
   }
 
+  // Future<void> _pickTime() async {
+  //   // Example placeholder call to a custom time picker:
+  //   // final picked = await showCustomTimePicker(context, _selectedTime);
+  //   final picked = await _showTimePickerFallback(context, _selectedTime ?? const TimeOfDay(hour: 9, minute: 0));
+  //   if (picked != null) {
+  //     setState(() => _selectedTime = picked);
+  //   }
+  // }
+
   Future<void> _pickTime() async {
-    // Example placeholder call to a custom time picker:
-    // final picked = await showCustomTimePicker(context, _selectedTime);
-    final picked = await _showTimePickerFallback(context, _selectedTime ?? const TimeOfDay(hour: 9, minute: 0));
-    if (picked != null) {
-      setState(() => _selectedTime = picked);
-    }
+    // 1. Prepare initial DateTime based on current selection
+    final now = DateTime.now();
+    final initial = _selectedTime ?? const TimeOfDay(hour: 9, minute: 0);
+    // CupertinoDatePicker requires a DateTime, not just TimeOfDay
+    final initialDateTime = DateTime(now.year, now.month, now.day, initial.hour, initial.minute);
+    
+    // Variable to track changes as user spins the wheel
+    DateTime tempPickedDate = initialDateTime;
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext builder) {
+        return SizedBox(
+          height: 280,
+          child: Column(
+            children: [
+              // --- Toolbar with "Done" button ---
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        // Save the selected time
+                        setState(() {
+                          _selectedTime = TimeOfDay.fromDateTime(tempPickedDate);
+                        });
+                        Navigator.of(context).pop();
+                      },
+                      child: const Text(
+                        'Done',
+                        // Uses your app's Primary Color
+                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Color(0xFF0A6CF0)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // --- The Spinner Widget ---
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.time,
+                  initialDateTime: initialDateTime,
+                  use24hFormat: false, // Sets AM/PM mode like your image
+                  // This callback runs every time the wheel moves
+                  onDateTimeChanged: (DateTime newDate) {
+                    tempPickedDate = newDate;
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   // Helper to format display of date/time
@@ -371,8 +452,11 @@ class _AddTaskPageState extends State<AddTaskPage> {
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 contentPadding: const EdgeInsets.all(12),
               ),
-              controller: TextEditingController(text: _transcript),
-              onChanged: (v) => setState(() => _transcript = v),
+              // controller: TextEditingController(text: _transcript),
+              // onChanged: (v) => setState(() => _transcript = v),
+              controller: _transcriptController, 
+              // Update the state variable when user types manually
+              onChanged: (v) => _transcript = v,
             ),
           ),
         ],
