@@ -41,6 +41,9 @@ class _AddTaskPageState extends State<AddTaskPage> {
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   Duration? _selectedReminder; // e.g., Duration(hours:1)
+  bool _sameDate(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
 
   // UI design constants
   static const Color _primary = Color(0xFF0A6CF0);
@@ -277,11 +280,6 @@ class _AddTaskPageState extends State<AddTaskPage> {
     return picked;
   }
 
-  // Future<TimeOfDay?> _showTimePickerFallback(BuildContext context, TimeOfDay initialTime) async {
-  //   final picked = await showTimePicker(context: context, initialTime: initialTime);
-  //   return picked;
-  // }
-
   /// Wrapper that tries to call custom picker; otherwise fallback.
   /// Replace the body to call custom pickers.
   Future<void> _pickDate() async {
@@ -293,15 +291,6 @@ class _AddTaskPageState extends State<AddTaskPage> {
       setState(() => _selectedDate = picked);
     }
   }
-
-  // Future<void> _pickTime() async {
-  //   // Example placeholder call to a custom time picker:
-  //   // final picked = await showCustomTimePicker(context, _selectedTime);
-  //   final picked = await _showTimePickerFallback(context, _selectedTime ?? const TimeOfDay(hour: 9, minute: 0));
-  //   if (picked != null) {
-  //     setState(() => _selectedTime = picked);
-  //   }
-  // }
 
   Future<void> _pickTime() async {
     // 1. Prepare initial DateTime based on current selection
@@ -467,88 +456,117 @@ class _AddTaskPageState extends State<AddTaskPage> {
   Widget _typeView() {
     return Expanded(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: 24),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            //Title section
             const SizedBox(height: 6),
-            const Text('Task Title', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
+            const Text('Task Title', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
             TextField(
               controller: _titleController,
+              style: const TextStyle(fontSize: 18),
               decoration: InputDecoration(
                 hintText: 'e.g., Take medication at 8 AM',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
+            // Note section
             GestureDetector(
               onTap: () {
-                // reveal note textfield focus
-                // no-op; the text field below is visible
+              // reveal note textfield focus
+              // no-op; the text field below is visible
+              // },
+              // child: TextButton(
+              //   onPressed: () => FocusScope.of(context).requestFocus(FocusNode()),
+              //   child: const Text('+ Add a Note (Optional)', style: TextStyle(color: _primary, fontWeight: FontWeight.w600)),
+              // ),
+              // Focus note field when label is tapped
+                FocusScope.of(context).requestFocus(FocusNode()); 
               },
-              child: TextButton(
-                onPressed: () => FocusScope.of(context).requestFocus(FocusNode()),
-                child: const Text('+ Add a Note (Optional)', style: TextStyle(color: _primary, fontWeight: FontWeight.w600)),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8.0),
+                child: Text('+ Add a Note (Optional)', style: TextStyle(color: _primary, fontSize: 16, fontWeight: FontWeight.w600)),
               ),
             ),
             TextField(
               controller: _noteController,
               minLines: 2,
               maxLines: 4,
+              style: const TextStyle(fontSize: 16),
               decoration: InputDecoration(
                 hintText: 'Notes or details (optional)',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                contentPadding: const EdgeInsets.all(12),
+                contentPadding: const EdgeInsets.all(16),
               ),
             ),
-            const SizedBox(height: 18),
-            const Text('Date?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
+            const SizedBox(height: 24),
+            //Date section
+            const Text('Date?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
             Row(
               children: [
-                _dateOptionButton('Today', () {
-                  final now = DateTime.now();
-                  setState(() {
-                    _selectedDate = DateTime(now.year, now.month, now.day);
-                  });
-                }, selected: DateTime.now().difference(_selectedDate!).inDays == 0),
-                const SizedBox(width: 8),
-                _dateOptionButton('Tomorrow', () {
-                  final tomorrow = DateTime.now().add(const Duration(days: 1));
-                  setState(() {
-                    _selectedDate = DateTime(tomorrow.year, tomorrow.month, tomorrow.day);
-                  });
-                }, selected: DateTime.now().add(const Duration(days: 1)).difference(_selectedDate!).inDays == 0),
+                Expanded(
+                  child: _dateOptionButton('Today', () {
+                    final now = DateTime.now();
+                    setState(() {
+                      _selectedDate = DateTime(now.year, now.month, now.day);
+                    });
+                  }, selected: _sameDate(DateTime.now(), _selectedDate!), ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _dateOptionButton('Tomorrow', () {
+                    final tomorrow = DateTime.now().add(const Duration(days: 1));
+                    setState(() {
+                      _selectedDate = DateTime(tomorrow.year, tomorrow.month, tomorrow.day);
+                    });
+                  }, selected: _sameDate(DateTime.now().add(const Duration(days: 1)), _selectedDate!),),
+                ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
                 onPressed: _pickDate,
-                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                style: OutlinedButton.styleFrom(
+                  // Enforce minimum 48dp height
+                  minimumSize: const Size.fromHeight(52),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  side: const BorderSide(color: Colors.grey),
+                ),
                 child: Text('Pick Date...  (${_dateLabel()})', style: const TextStyle(fontSize: 16)),
               ),
             ),
-            const SizedBox(height: 18),
-            const Text('Time', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
+            const SizedBox(height: 24),
+            // Time section
+            const Text('Time', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
                 onPressed: _pickTime,
-                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52), // Enforce 48dp+
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  side: const BorderSide(color: Colors.grey),
+                ),
                 child: Text('Pick Time...  (${_timeLabel()})', style: const TextStyle(fontSize: 16)),
               ),
             ),
-            const SizedBox(height: 18),
-            const Text('Alert Me', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
+            const SizedBox(height: 24),
+            // Reminder section
+            const Text('Reminder/Alert Me', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: 12,
+              runSpacing: 12,
               children: [
                 _reminderChip('1 Hour', const Duration(hours: 1)),
                 _reminderChip('1 Day', const Duration(days: 1)),

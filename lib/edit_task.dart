@@ -1,5 +1,6 @@
 // lib/edit_task.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'data/app_database.dart';
 import 'task_item.dart';
 import 'services/notification_service.dart';
@@ -100,16 +101,60 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
   }
 
   Future<void> _pickTime() async {
-    // Replace this method to call custom time picker if available
-    final picked = await showTimePicker(
+    final now = DateTime.now();
+    // Convert current selection to DateTime for the spinner
+    final initialDateTime = DateTime(now.year, now.month, now.day, _selectedTime.hour, _selectedTime.minute);
+    
+    DateTime tempPickedDate = initialDateTime;
+
+    await showModalBottomSheet(
       context: context,
-      initialTime: _selectedTime,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext builder) {
+        return SizedBox(
+          height: 280,
+          child: Column(
+            children: [
+              // Toolbar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _selectedTime = TimeOfDay.fromDateTime(tempPickedDate);
+                        });
+                        Navigator.of(context).pop();
+                      },
+                      child: const Text(
+                        'Done',
+                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: primary),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Spinner
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.time,
+                  initialDateTime: initialDateTime,
+                  use24hFormat: false,
+                  onDateTimeChanged: (DateTime newDate) {
+                    tempPickedDate = newDate;
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
-    if (picked != null) {
-      setState(() {
-        _selectedTime = picked;
-      });
-    }
   }
 
   void _setDateToday() {
@@ -298,15 +343,17 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
   Widget _segmentedButton(String label, bool active, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 48), // 48dp minimum
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: active ? primary : Colors.transparent,
           borderRadius: BorderRadius.circular(28),
           border: Border.all(color: Colors.black54),
         ),
-        child: Text(label, style: TextStyle(color: active ? Colors.white : Colors.black87, fontWeight: FontWeight.w700)),
+        child: Text(label, style: TextStyle(color: active ? Colors.white : Colors.black87, fontWeight: FontWeight.w700, fontSize: 16)),
       ),
     );
   }
@@ -315,14 +362,22 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     final active = _selectedReminder == dur;
     return GestureDetector(
       onTap: () => _setReminder(dur),
+      behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        constraints: const BoxConstraints(minHeight: 48, minWidth: 64), // 48dp minimum
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: active ? primary : Colors.transparent,
           border: Border.all(color: Colors.black54),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Text(label, style: TextStyle(color: active ? Colors.white : Colors.black87, fontWeight: FontWeight.w700)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: TextStyle(color: active ? Colors.white : Colors.black87, fontWeight: FontWeight.w700, fontSize: 15)),
+          ],
+        ),
       ),
     );
   }
@@ -352,27 +407,36 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
 
     return GestureDetector(
       onTap: _pickCustomReminder,
+      behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        constraints: const BoxConstraints(minHeight: 48), // 48dp minimum
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: isCustomSelected ? primary : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.black54),
         ),
-        child: Row(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(label, style: TextStyle(
-              color: isCustomSelected ? Colors.white : Colors.black87, 
-              fontWeight: FontWeight.w700
-            )),
-            if (isCustomSelected) ...[
-              const SizedBox(width: 4),
-              const Icon(Icons.edit, size: 14, color: Colors.white),
-            ]
-          ],
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(label, style: TextStyle(
+                  color: isCustomSelected ? Colors.white : Colors.black87, 
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15
+                )),
+                if (isCustomSelected) ...[
+                  const SizedBox(width: 4),
+                  const Icon(Icons.edit, size: 14, color: Colors.white),
+                ]
+              ],
+            ),
+          ]
         ),
-      ),
+      )
     );
   }
 
@@ -406,76 +470,96 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
               Expanded(
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.only(bottom: 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 12),
-
-                      // Title label + input (rounded box)
-                      const Text('Task Title', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 8),
+                      // Title label + input (rounded box) section
+                      const Text('Task Title', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 12),
                       TextField(
                         controller: _titleCtrl,
+                        style: const TextStyle(fontSize: 18),
                         decoration: InputDecoration(
                           hintText: 'Enter task title',
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(width: 2)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(width: 1)),
                         ),
-                        style: const TextStyle(fontSize: 16),
                       ),
 
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
 
-                      // Note
-                      const Text('Note (Optional)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 8),
+                      // Note section
+                      const Text('Note (Optional)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 12),
                       TextField(
                         controller: _noteCtrl,
                         minLines: 3,
                         maxLines: 6,
+                        style: const TextStyle(fontSize: 16),
                         decoration: InputDecoration(
                           hintText: 'Add additional details...',
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(width: 2)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(width: 1)),
                         ),
-                        style: const TextStyle(fontSize: 15),
                       ),
 
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 24),
 
-                      // Date
-                      const Text('Date', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 8),
+                      // Date section
+                      const Text('Date', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 12),
                       Row(
                         children: [
-                          _segmentedButton('Today', _sameDate(_selectedDate, DateTime.now()), _setDateToday),
-                          const SizedBox(width: 8),
-                          _segmentedButton('Tomorrow', _sameDate(_selectedDate, DateTime.now().add(const Duration(days: 1))), _setDateTomorrow),
+                          Expanded(child: _segmentedButton('Today', _sameDate(_selectedDate, DateTime.now()), _setDateToday)),
+                          const SizedBox(width: 12),
+                          Expanded(child: _segmentedButton('Tomorrow', _sameDate(_selectedDate, DateTime.now().add(const Duration(days: 1))), _setDateTomorrow)),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      OutlinedButton(
-                        onPressed: _pickDate,
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      const SizedBox(height: 12),
+
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: _pickDate,
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(52), // Enforce 48dp+
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            side: const BorderSide(color: Colors.grey),
+                          ),
+                          child: Text('Pick Date...  (${_formatDateLabel(_selectedDate)})', style: const TextStyle(fontSize: 16, color: Colors.black87)),
                         ),
-                        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                          Text('Pick Date...  (${_formatDateLabel(_selectedDate)})', style: const TextStyle(fontSize: 16)),
-                          IconButton(
-                            onPressed: _pickTime,
-                            icon: const Icon(Icons.access_time),
-                            tooltip: 'Pick time',
-                          )
-                        ]),
                       ),
 
-                      const SizedBox(height: 18),
-                      const Text('Alert Me', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 24),
+
+                      // Time section
+                      const Text('Time', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: _pickTime,
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(52), // Enforce 48dp+
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            side: const BorderSide(color: Colors.grey),
+                          ),
+                          child: Text('Pick Time...  (${_formatTimeLabel(_selectedTime)})', style: const TextStyle(fontSize: 16, color: Colors.black87)),
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Reminder section
+                      const Text('Reminder/Alert Me', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 12),
                       Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                        spacing: 12,
+                        runSpacing: 12,
                         children: [
                           _reminderChip('1 Hour', const Duration(hours: 1)),
                           _reminderChip('1 Day', const Duration(days: 1)),
@@ -505,16 +589,20 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primary,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          disabledBackgroundColor: Colors.grey.shade200,
                         ),
                         child: _isSaving
                             ? const CircularProgressIndicator(color: Colors.white)
-                            : const Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                            : Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: saveEnabled ? Colors.white : Colors.grey.shade600)),
                       ),
                     ),
                     const SizedBox(height: 10),
-                    TextButton(
-                      onPressed: _isSaving ? null : _onCancelPressed,
-                      child: const Text('Cancel', style: TextStyle(color: Colors.black54)),
+                    SizedBox(
+                      height: 48,
+                      child: TextButton(
+                        onPressed: _isSaving ? null : _onCancelPressed,
+                        child: const Text('Cancel', style: TextStyle(color: Colors.black54, fontSize: 16)),
+                      )
                     )
                   ],
                 ),
