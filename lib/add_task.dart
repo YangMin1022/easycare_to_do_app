@@ -417,7 +417,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
               child: CircleAvatar(
                 radius: 44,
                 backgroundColor: _isListening ? Colors.redAccent : (_speechEnabled ? _primary : _surface),
-                child: Icon(Icons.mic, color: _isListening ? Colors.white : _primary, size: 60),
+                child: Icon(Icons.mic, color: _isListening ? Colors.white : Colors.white, size: 60),
               ),
             ),
           ),
