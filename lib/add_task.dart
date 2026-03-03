@@ -211,23 +211,32 @@ class _AddTaskPageState extends State<AddTaskPage> {
           _selectedTime!.hour,
           _selectedTime!.minute,
         );
-      //CALCULATE REMINDER LOGIC
-      DateTime? reminderTime;
-      int? notificationId;
+      //CALCULATE REMINDER & DUE NOTIFICATION LOGIC
+      int baseNotificationId = Random().nextInt(50000000); 
 
+      // 1. ALWAYS schedule the notification for the exact Due Time (e.g., 9:00 AM)
+      await NotificationService().scheduleReminder(
+        id: baseNotificationId,
+        title: "Task Due: $title",
+        body: "It is time for your task!",
+        scheduledTime: due,
+        payload: baseNotificationId.toString(),
+      );
+      
+      // 2. Check if a reminder was selected and schedule a SECOND notification (e.g., 7:00 AM)
+      DateTime? reminderTime;
       if (_selectedReminder != null) {
         reminderTime = due.subtract(_selectedReminder!);
         
-        // Generate a safe 32-bit Integer ID for Android Notification System
-        notificationId = Random().nextInt(100000000); 
+        // Use a deterministic ID for the reminder by adding 1 to the base ID
+        int reminderNotificationId = baseNotificationId + 1;
 
-        // Schedule it
         await NotificationService().scheduleReminder(
-          id: notificationId,
+          id: reminderNotificationId,
           title: "Reminder: $title",
           body: "Due at ${_timeLabel()}",
           scheduledTime: reminderTime,
-          payload: notificationId.toString(), // Store ID in payload for navigation later
+          payload: reminderNotificationId.toString(), 
         );
       }
       //Task Item
@@ -240,7 +249,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
         due: due,
         reminderBefore: _selectedReminder,
         reminderTime: reminderTime,
-        notificationId: notificationId,
+        notificationId: baseNotificationId,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );

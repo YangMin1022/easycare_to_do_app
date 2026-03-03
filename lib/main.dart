@@ -127,8 +127,7 @@ class _OnboardingThenHomeState extends State<OnboardingThenHome> {
                     ]),
                     SimpleOnboardingPage(icon: Icons.volume_up, title: 'Listen to Your Tasks', bullets: [
                       'Tap the speaker button to hear your tasks read aloud',
-                      'Adjust voice speed and volume in Settings',
-                      'Get audio reminders for important tasks'
+                      'Adjust voice speed and volume in Settings'
                     ]),
                   ],
                 ),

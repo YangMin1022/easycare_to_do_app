@@ -263,25 +263,33 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
       // We always cancel the old one to be safe, because the time or ID might change.
       if (widget.task.notificationId != null) {
         await NotificationService().cancelNotification(widget.task.notificationId!);
+        await NotificationService().cancelNotification(widget.task.notificationId! + 1);
       }
 
       // 2. SCHEDULE NEW NOTIFICATION (If reminder is set)
-      DateTime? newReminderTime;
-      int? newNotificationId;
+      int baseNotificationId = widget.task.notificationId ?? Random().nextInt(50000000);
+      
+      // ALWAYS schedule the notification for the exact Due Time
+      await NotificationService().scheduleReminder(
+        id: baseNotificationId,
+        title: "Task Due: ${_titleCtrl.text.trim()}",
+        body: "It is time for your task!",
+        scheduledTime: newDue,
+        payload: baseNotificationId.toString(),
+      );
 
+      // Check if a reminder was selected and schedule the SECOND notification
+      DateTime? newReminderTime;
       if (_selectedReminder != null) {
         newReminderTime = newDue.subtract(_selectedReminder!);
-        
-        // Try to keep the old ID if possible to avoid ID exhaustion, 
-        // otherwise generate a new one.
-        newNotificationId = widget.task.notificationId ?? Random().nextInt(100000000);
+        int reminderNotificationId = baseNotificationId + 1;
 
         await NotificationService().scheduleReminder(
-          id: newNotificationId,
+          id: reminderNotificationId,
           title: "Reminder: ${_titleCtrl.text.trim()}",
           body: "Due at ${_formatTimeLabel(_selectedTime)}",
           scheduledTime: newReminderTime,
-          payload: newNotificationId.toString(),
+          payload: reminderNotificationId.toString(),
         );
       }
       // 3. CREATE EDITED TASK
@@ -291,7 +299,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
         due: newDue,
         reminderBefore: _selectedReminder,
         reminderTime: newReminderTime,
-        notificationId: newNotificationId,
+        notificationId: baseNotificationId,
       );
 
       if (widget.onSave != null) {
@@ -330,7 +338,10 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     if (confirm == true) {
       // 1. Cancel the notification before deleting
       if (widget.task.notificationId != null) {
+        // Cancel the main due time notification
         await NotificationService().cancelNotification(widget.task.notificationId!);
+        // Cancel the reminder notification (base ID + 1)
+        await NotificationService().cancelNotification(widget.task.notificationId! + 1);
       }
 
       if (!mounted) return;

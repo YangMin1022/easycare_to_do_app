@@ -27,7 +27,7 @@ class SmartParser {
     // --- 1. EXTRACT DYNAMIC REMINDER FIRST ---
     // We do this first so "2 hours" doesn't get confused with "2:00 PM"
     // Matches: "remind me 2 hours", "remind me in 30 mins", "remind me 1 day before"
-    final reminderRegex = RegExp(r'remind\s+me\s+(?:in\s+|before\s+)?(\d+)\s*(hour|hr|minute|min|day)s?(?:\s+before)?', caseSensitive: false);
+    final reminderRegex = RegExp(r'reminds?\s+me\s+(?:in\s+|before\s+)?(\d+)\s*(hour|hr|minute|min|day)s?(?:\s+before)?', caseSensitive: false);
     final reminderMatch = reminderRegex.firstMatch(cleanText);
 
     if (reminderMatch != null) {
@@ -46,9 +46,9 @@ class SmartParser {
       cleanText = cleanText.replaceAll(reminderMatch.group(0)!, '');
     } 
     // Fallback: If they just said "remind me" without a time
-    else if (cleanText.toLowerCase().contains('remind me')) {
+    else if (cleanText.toLowerCase().contains(RegExp(r'reminds?\s+me'))) {
       foundReminder = const Duration(hours: 1); // Default
-      cleanText = _removeKeyword(cleanText, 'remind me');
+      cleanText = cleanText.replaceAll(RegExp(r'\breminds?\s+me\b', caseSensitive: false), '').trim();
     }
 
     // --- 2. RELATIVE DATES (Tomorrow, Today) ---
