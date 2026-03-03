@@ -27,7 +27,7 @@ class SmartParser {
     // --- 1. EXTRACT DYNAMIC REMINDER FIRST ---
     // We do this first so "2 hours" doesn't get confused with "2:00 PM"
     // Matches: "remind me 2 hours", "remind me in 30 mins", "remind me 1 day before"
-    final reminderRegex = RegExp(r'remind\s+me\s+(?:in\s+|before\s+)?(\d+)\s*(hour|hr|minute|min|day)s?', caseSensitive: false);
+    final reminderRegex = RegExp(r'remind\s+me\s+(?:in\s+|before\s+)?(\d+)\s*(hour|hr|minute|min|day)s?(?:\s+before)?', caseSensitive: false);
     final reminderMatch = reminderRegex.firstMatch(cleanText);
 
     if (reminderMatch != null) {
@@ -89,7 +89,7 @@ class SmartParser {
 
         foundTime = TimeOfDay(hour: hour, minute: minute);
         // Remove the match from the text
-        cleanText = cleanText.replaceAll(timeMatch.group(0)!, '');
+        // cleanText = cleanText.replaceAll(timeMatch.group(0)!, '');
       }
     }
 
@@ -112,7 +112,7 @@ class SmartParser {
   }
 
   static String _removeKeyword(String text, String keyword) {
-    return text.replaceAll(RegExp('\\b$keyword\\b', caseSensitive: false), '');
+    return text.replaceAll(RegExp(r'\b(?:on\s+)?' + keyword + r'\b', caseSensitive: false), '');
   }
 
   // --- HELPER: Find "15 June" or "June 15" ---
@@ -134,11 +134,11 @@ class SmartParser {
 
     // Regex for "15 June" or "15th June"
     // Group 1: Day, Group 3: Month
-    final dayMonthRegex = RegExp(r'\b(\d{1,2})(st|nd|rd|th)?\s+([a-zA-Z]+)\b', caseSensitive: false);
+    final dayMonthRegex = RegExp(r'\b(?:on\s+)?(\d{1,2})(st|nd|rd|th)?\s+([a-zA-Z]+)\b', caseSensitive: false);
     
     // Regex for "June 15" or "June 15th"
     // Group 1: Month, Group 2: Day
-    final monthDayRegex = RegExp(r'\b([a-zA-Z]+)\s+(\d{1,2})(st|nd|rd|th)?\b', caseSensitive: false);
+    final monthDayRegex = RegExp(r'\b(?:on\s+)?([a-zA-Z]+)\s+(\d{1,2})(st|nd|rd|th)?\b', caseSensitive: false);
 
     final now = DateTime.now();
 
