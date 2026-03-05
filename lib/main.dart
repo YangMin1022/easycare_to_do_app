@@ -9,6 +9,7 @@ import 'help_screen.dart';
 import 'settings.dart';
 import 'services/tts_service.dart';
 import 'services/tts_helpers.dart';
+import 'services/settings_service.dart';
 import 'package:timezone/data/latest.dart' as tz; // <--- 1. ADD IMPORT
 import 'package:timezone/timezone.dart' as tzi;
 import 'services/notification_service.dart';
@@ -20,6 +21,7 @@ void main() async{
   tz.initializeTimeZones();
   // Initialize Notifications
   await NotificationService().init();
+  await SettingsService().init();
   runApp(const EasyCareApp());
 }
 
@@ -28,15 +30,30 @@ class EasyCareApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'EasyCare Demo',
-      theme: ThemeData(
-        primaryColor: const Color(0xFF0A6CF0),
-        scaffoldBackgroundColor: Colors.white,
-        useMaterial3: false,
-      ),
-      home: const OnboardingThenHome(),
-      debugShowCheckedModeBanner: false,
+    // Listen to changes in the global font size setting
+    return ValueListenableBuilder<FontSizeOption>(
+      valueListenable: SettingsService().fontSizeNotifier,
+      builder: (context, fontSize, child) {
+        return MaterialApp(
+          title: 'EasyCare Demo',
+          theme: ThemeData(
+            primaryColor: const Color(0xFF0A6CF0),
+            scaffoldBackgroundColor: Colors.white,
+            useMaterial3: false,
+          ),
+          // Apply the text scale globally to every screen
+          builder: (context, child) {
+            return MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: TextScaler.linear(SettingsService().textScaleFactor),
+              ),
+              child: child!,
+            );
+          },
+          home: const OnboardingThenHome(),
+          debugShowCheckedModeBanner: false,
+        );
+      },
     );
   }
 }
@@ -291,7 +308,7 @@ class _TaskListHomeState extends State<TaskListHome> {
     );
   }
 
-  // Add this inside _TaskListHomeState class
+  // Open Task Details page with callbacks for actions that can be triggered from there (mark done, delete, edit)
   void _openTaskDetails(TaskItem t) async {
     await Navigator.push(
       context,

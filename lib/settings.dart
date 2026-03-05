@@ -2,12 +2,11 @@
 import 'package:flutter/material.dart';
 import 'services/notification_service.dart';
 import 'services/tts_service.dart';
+import 'services/settings_service.dart';
 
 const Color kPrimaryBlue = Color(0xFF0A6CF0);
 const Color kSurfaceGrey = Color(0xFFF4F6F8);
 const Color kBackground = Colors.white;
-
-enum FontSizeOption { small, medium, large }
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -19,9 +18,6 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   // TTS Service instance
   final TtsService _tts = TtsService();
-
-  // local interactive state
-  FontSizeOption _fontSize = FontSizeOption.medium;
 
   // TTS State (Default values, will be overwritten by loadSettings)
   double _ttsSpeed = 1.2; // multiplier 0.5x - 2.0x
@@ -47,34 +43,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  // helper getters for Font Size logic
-  double get _fontPreviewSize {
-    switch (_fontSize) {
-      case FontSizeOption.small:
-        return 14.0;
-      case FontSizeOption.medium:
-        return 18.0;
-      case FontSizeOption.large:
-        return 22.0;
-    }
-  }
-
-  String get _fontLabel {
-    switch (_fontSize) {
-      case FontSizeOption.small:
-        return 'Small';
-      case FontSizeOption.medium:
-        return 'Medium';
-      case FontSizeOption.large:
-        return 'Large';
-    }
-  }
-
-  void _setFontSize(FontSizeOption opt) {
-    setState(() => _fontSize = opt);
-  }
-
-  // 1. Add this function inside _SettingsScreenState
+  // Notification Test Functions
   void _testScheduledNotification() async {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Scheduling for 5 seconds... wait for it!')));
     
@@ -90,9 +59,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
   
   void _sendTestNotification() async{
-    // ScaffoldMessenger.of(context).showSnackBar(
-    //   const SnackBar(content: Text('Test notification (demo)')),
-    // );
     // 1. Trigger the actual notification
     await NotificationService().showInstantNotification(
       title: 'Test Notification',
@@ -130,39 +96,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 8),
                 const Text('Font Size', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    _SegmentedOption(
-                      label: 'Small',
-                      selected: _fontSize == FontSizeOption.small,
-                      onTap: () => _setFontSize(FontSizeOption.small),
-                    ),
-                    const SizedBox(width: 8),
-                    _SegmentedOption(
-                      label: 'Medium',
-                      selected: _fontSize == FontSizeOption.medium,
-                      onTap: () => _setFontSize(FontSizeOption.medium),
-                    ),
-                    const SizedBox(width: 8),
-                    _SegmentedOption(
-                      label: 'Large',
-                      selected: _fontSize == FontSizeOption.large,
-                      onTap: () => _setFontSize(FontSizeOption.large),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Card(
-                  color: kSurfaceGrey,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Text(
-                      'Sample text preview',
-                      style: TextStyle(fontSize: _fontPreviewSize),
-                    ),
-                  ),
+                // Wrap the font controls to listen to the global service
+                ValueListenableBuilder<FontSizeOption>(
+                  valueListenable: SettingsService().fontSizeNotifier,
+                  builder: (context, currentFontSize, child) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            _SegmentedOption(
+                              label: 'Small',
+                              selected: currentFontSize == FontSizeOption.small,
+                              onTap: () => SettingsService().setFontSize(FontSizeOption.small),
+                            ),
+                            const SizedBox(width: 8),
+                            _SegmentedOption(
+                              label: 'Medium',
+                              selected: currentFontSize == FontSizeOption.medium,
+                              onTap: () => SettingsService().setFontSize(FontSizeOption.medium),
+                            ),
+                            const SizedBox(width: 8),
+                            _SegmentedOption(
+                              label: 'Large',
+                              selected: currentFontSize == FontSizeOption.large,
+                              onTap: () => SettingsService().setFontSize(FontSizeOption.large),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Card(
+                          color: kSurfaceGrey,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                          child: const Padding(
+                            padding: EdgeInsets.all(12),
+                            // We don't need manual size calculation anymore; 
+                            // MediaQuery handles scaling this automatically!
+                            child: Text(
+                              'Sample text preview. Notice how the entire app scales instantly!',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 20),
