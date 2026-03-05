@@ -186,46 +186,49 @@ class TaskDetailsScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Primary: Mark as Done
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        if (onMarkDone != null) onMarkDone!(task);
-                        // default behaviour: show a confirmation
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Marked as done')));
-                      },
-                      icon: const Icon(Icons.check_circle_outline, size: 20),
-                      label: const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 14),
-                        child: Text('Mark as Done', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    // Hide Mark as Done and Edit if task is completed
+                    if (!task.completed) ...[
+                      // Primary: Mark as Done
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          if (onMarkDone != null) onMarkDone!(task);
+                          // default behaviour: show a confirmation
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Marked as done')));
+                        },
+                        icon: const Icon(Icons.check_circle_outline, size: 20),
+                        label: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 14),
+                          child: Text('Mark as Done', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _primary,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _primary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
+                      const SizedBox(height: 10),
 
-                    // Secondary: Edit (outlined)
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        if (onEdit != null) {
-                          onEdit!(task);
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Edit (not implemented)')));
-                        }
-                      },
-                      icon: const Icon(Icons.edit, color: Colors.black87, size: 20),
-                      label: const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 14),
-                        child: Text('Edit Task', style: TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w700)),
+                      // Secondary: Edit (outlined)
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          if (onEdit != null) {
+                            onEdit!(task);
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Edit (not implemented)')));
+                          }
+                        },
+                        icon: const Icon(Icons.edit, color: Colors.black87, size: 20),
+                        label: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 14),
+                          child: Text('Edit Task', style: TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w700)),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          side: BorderSide(color: Colors.grey.shade300),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
                       ),
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        side: BorderSide(color: Colors.grey.shade300),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
+                      const SizedBox(height: 10),
+                    ],
 
                     // Danger: Delete
                     ElevatedButton.icon(

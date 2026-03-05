@@ -570,14 +570,35 @@ class _TaskListHomeState extends State<TaskListHome> {
               final allTasks = snapshot.data ?? [];
               final visible = _filterTasks(allTasks); // Apply search filter
 
-              if (visible.isEmpty) {
+              final pendingTasks = visible.where((t) => !t.completed).toList();
+              final completedTasks = visible.where((t) => t.completed).toList();
+
+              if (pendingTasks.isEmpty && completedTasks.isEmpty) {
                 return const Center(child: Text('No tasks', style: TextStyle(fontSize: 16, color: Colors.black54)));
               }
 
               return ListView.builder(
                 padding: const EdgeInsets.only(bottom: 120, top: 4),
-                itemCount: visible.length,
-                itemBuilder: (_, i) => _buildTaskCard(visible[i]),
+                // Add an extra item for the "Completed" header if there are completed tasks
+                itemCount: pendingTasks.length + (completedTasks.isNotEmpty ? 1 + completedTasks.length : 0),
+                itemBuilder: (_, index) {
+                  // 1. Render Pending Tasks
+                  if (index < pendingTasks.length) {
+                    return _buildTaskCard(pendingTasks[index]);
+                  }
+                  
+                  // 2. Render the "Completed" Header
+                  int completedIndex = index - pendingTasks.length;
+                  if (completedIndex == 0) {
+                    return const Padding(
+                      padding: EdgeInsets.only(top: 24, bottom: 8),
+                      child: Text('Completed', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.black54)),
+                    );
+                  }
+                  
+                  // 3. Render Completed Tasks
+                  return _buildTaskCard(completedTasks[completedIndex - 1]);
+                },
               );
             },
           ),
