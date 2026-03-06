@@ -1,5 +1,6 @@
 // lib/help_screen.dart
 import 'package:flutter/material.dart';
+import 'services/tts_service.dart';
 
 // Style constants used in the HelpScreen.
 const Color kPrimaryBlue = Color(0xFF0A6CF0);
@@ -38,24 +39,28 @@ class HelpScreen extends StatelessWidget {
                 icon: Icons.mic,
                 title: 'How to add a task by voice',
                 subtitle: 'Learn to use voice dictation to create tasks quickly',
+                spokenText: 'To add a task by voice, tap the Add Task button on the home screen. Then tap the microphone button and speak your task naturally. For example, say "Take medication at 8 AM". When you finish speaking, tap the microphone again to stop. You can edit the transcript before saving.',
               ),
               SizedBox(height: 8),
               _TutorialCard(
                 icon: Icons.volume_up,
                 title: 'How to hear your tasks',
                 subtitle: 'Listen to your tasks being read aloud',
+                spokenText: 'To hear your tasks read aloud, go to the home screen and tap the speaker button at the top right. All your pending tasks will be read out loud. You can adjust the voice speed and volume in Settings.',
               ),
               SizedBox(height: 8),
               _TutorialCard(
                 icon: Icons.notifications_active,
                 title: 'Setting up reminders',
                 subtitle: 'Get notified before your tasks are due',
+                spokenText: 'When adding or editing a task, you can set a reminder. Choose how many hours or days before the task you want to be notified. Make sure notifications are enabled in Settings.',
               ),
               SizedBox(height: 8),
               _TutorialCard(
                 icon: Icons.accessibility_new,
                 title: 'Accessibility settings',
                 subtitle: 'Customise EasyCare to meet your needs',
+                spokenText: 'In Settings, you can adjust font size, and control text-to-speech settings. All settings are designed to make EasyCare easier to use.',
               ),
               SizedBox(height: 20),
 
@@ -143,67 +148,86 @@ class _TutorialCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
+  final String spokenText;
 
   const _TutorialCard({
     required this.icon,
     required this.title,
     required this.subtitle,
+    required this.spokenText,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: kSurfaceGrey,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 0,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          // placeholder: integrate audio playback
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Play: $title')));
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-          child: Row(
-            children: [
-              // Leading circular icon
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-                child: Center(
-                  child: CircleAvatar(
-                    radius: 18,
-                    backgroundColor: kPrimaryBlue,
-                    child: Icon(icon, color: Colors.white, size: 18),
+    return ValueListenableBuilder<bool>(
+      valueListenable: TtsService().isSpeakingNotifier,
+      builder: (context, isSpeaking, child) {
+        
+        // Helper function to handle the toggle logic
+        void handleTap() async {
+          if (isSpeaking) {
+            await TtsService().stop();
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Audio stopped.')));
+            }
+          } else {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Playing: $title')));
+            }
+            await TtsService().speak(spokenText);
+          }
+        }
+        return Card(
+          color: kSurfaceGrey,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 0,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: handleTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              child: Row(
+                children: [
+                  // Leading circular icon
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
+                    child: Center(
+                      child: CircleAvatar(
+                        radius: 22,
+                        backgroundColor: kPrimaryBlue,
+                        child: Icon(icon, color: Colors.white, size: 24),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 12),
+                  const SizedBox(width: 12),
 
-              // Title + subtitle
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 6),
-                  Text(subtitle, style: const TextStyle(fontSize: 16, color: Colors.black54)),
-                ]),
-              ),
+                  // Title + subtitle
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 6),
+                      Text(subtitle, style: const TextStyle(fontSize: 16, color: Colors.black54)),
+                    ]),
+                  ),
 
-              // Play icon
-              IconButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Play: $title')));
-                },
-                icon: const Icon(Icons.play_circle_fill),
-                color: kPrimaryBlue,
-                iconSize: 28,
-                tooltip: 'Play tutorial',
+                  // Play icon
+                  IconButton(
+                    onPressed: handleTap,
+                    icon: Icon(isSpeaking ? Icons.stop_circle : Icons.play_circle_fill),
+                    color: isSpeaking ? Colors.red : kPrimaryBlue,
+                    iconSize: 28,
+                    tooltip: isSpeaking ? 'Stop tutorial' : 'Play tutorial',
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
