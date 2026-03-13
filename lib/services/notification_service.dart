@@ -33,7 +33,7 @@ class NotificationService {
     }
 
     const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('ic_notification');
 
     const DarwinInitializationSettings initializationSettingsDarwin =
         DarwinInitializationSettings(
@@ -103,6 +103,7 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.high,
       audioAttributesUsage: AudioAttributesUsage.alarm,
+      icon: 'ic_notification',
     );
 
     const NotificationDetails platformDetails =
