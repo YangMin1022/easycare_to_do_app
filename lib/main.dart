@@ -139,7 +139,7 @@ class _OnboardingThenHomeState extends State<OnboardingThenHome> {
                   children: const [
                     SimpleOnboardingPage(icon: Icons.mic, title: 'Add Tasks by Voice', bullets: [
                       'Tap the microphone button to start speaking',
-                      'Say your task naturally, like "Take medication at 8 AM"',
+                      'Say your task naturally, like "Take medication at 8 AM on June 26. Remind me 2 hours before."',
                       'Review and edit the transcript before saving'
                     ]),
                     SimpleOnboardingPage(icon: Icons.volume_up, title: 'Listen to Your Tasks', bullets: [
@@ -443,36 +443,58 @@ class _TaskListHomeState extends State<TaskListHome> {
             const SizedBox(width: 12),
             // main content
             Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Expanded(child: Text(t.title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, decoration: t.completed ? TextDecoration.lineThrough : null))),
-                  const SizedBox(width: 8),
-                  // edit icon
-                  IconButton(
-                    onPressed: () => _openEditTask(t),
-                    icon: const Icon(Icons.edit, color: _Design.primary),
-                  ),
-                ]),
-                const SizedBox(height: 6),
-                Text(t.note, style: const TextStyle(fontSize: 16, color: Colors.black54)),
-                const SizedBox(height: 10),
-                Row(children: [
-                  Icon(Icons.schedule, size: 16, color: Colors.black54),
-                  const SizedBox(width: 6),
-                  Text(_formatDate(t.due), style: const TextStyle(fontSize: 15, color: Colors.black54)),
-                  const SizedBox(width: 10),
-                  if (badgeText.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                      decoration: BoxDecoration(color: _Design.accentYellow, borderRadius: BorderRadius.circular(8)),
-                      child: Row(children: [
-                        const Icon(Icons.notifications_active, size: 16, color: Colors.orange),
-                        const SizedBox(width: 6),
-                        Text(badgeText, style: TextStyle(fontSize: 15, color: Colors.black87)),
-                      ]),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, 
+                children: [
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Expanded(child: Text(t.title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, decoration: t.completed ? TextDecoration.lineThrough : null))),
+                    const SizedBox(width: 8),
+                    // edit icon
+                    IconButton(
+                      onPressed: () => _openEditTask(t),
+                      icon: const Icon(Icons.edit, color: _Design.primary),
                     ),
-                ])
-              ]),
+                  ]),
+                  const SizedBox(height: 6),
+                  Text(t.note, style: const TextStyle(fontSize: 16, color: Colors.black54)),
+                  const SizedBox(height: 10),
+                  // REPLACED ROW WITH WRAP HERE
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 10.0,    // Horizontal gap between the date and the badge
+                    runSpacing: 8.0,  // Vertical gap if the badge wraps to the next line
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                        Icon(Icons.schedule, size: 16, color: Colors.black54),
+                        const SizedBox(width: 6),
+                        Text(_formatDate(t.due), style: const TextStyle(fontSize: 15, color: Colors.black54)),
+                        ]
+                      ),
+                      // const SizedBox(width: 10),
+                      if (badgeText.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                          decoration: BoxDecoration(color: _Design.accentYellow, borderRadius: BorderRadius.circular(8)),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                            const Icon(Icons.notifications_active, size: 16, color: Colors.orange),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                badgeText, 
+                                style: const TextStyle(fontSize: 15, color: Colors.black87),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ]
+                        ),
+                      ),
+                    ]
+                  )
+                ]
+              ),
             )
           ]),
         ),

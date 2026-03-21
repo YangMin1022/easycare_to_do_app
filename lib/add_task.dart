@@ -433,15 +433,18 @@ class _AddTaskPageState extends State<AddTaskPage> {
           const SizedBox(height: 12),
           Text(_isListening ? 'Listening...' : (_speechEnabled ? 'Tap to speak' : 'Mic unavailable'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-          Text(
-            'Tap the microphone and speak your task',
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
-            textAlign: TextAlign.center,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Text(
+              'Tap the microphone and speak your task.\n\nExample: "Take medication at 8 AM on June 26. Remind me 2 hours before."',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade700, height: 1.4),
+              textAlign: TextAlign.center,
+            ),
           ),
           const SizedBox(height: 24),
           // Show transcript editor for confirmation (editable)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             child: TextField(
               minLines: 2,
               maxLines: 4,
