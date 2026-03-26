@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'services/notification_service.dart';
 import 'services/tts_service.dart';
 import 'services/settings_service.dart';
+import 'data/app_database.dart';
 
 const Color kPrimaryBlue = Color(0xFF0A6CF0);
 const Color kSurfaceGrey = Color(0xFFF4F6F8);
@@ -24,23 +25,81 @@ class _SettingsScreenState extends State<SettingsScreen> {
   double _ttsVolume = 50.0; // percent
 
   bool _notificationsEnabled = true;
+  bool _hasNotificationPermission = false;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    _checkNotificationPermissionsOnLoad();
   }
 
   // Load saved preferences from the TTS Service
   Future<void> _loadSettings() async {
     await _tts.init(); // Ensure service is ready
+    // Load the saved notification preference
+    bool savedNotificationState = SettingsService().notificationsEnabled;
     if (!mounted) return;
     setState(() {
       _ttsSpeed = _tts.speechRate;
       _ttsVolume = _tts.volume * 100;
+      _notificationsEnabled = savedNotificationState;
       _isLoading = false;
     });
+  }
+
+  // Checks OS-level permission when the screen loads
+  Future<void> _checkNotificationPermissionsOnLoad() async {
+    bool granted = await NotificationService().checkPermissions(); 
+    
+    setState(() {
+      _hasNotificationPermission = granted;
+      // If OS permission is denied, force the local switch OFF
+      if (!granted) {
+        _notificationsEnabled = false;
+      }
+    });
+  }
+
+  // Handles the switch logic
+  Future<void> _handleSwitchToggled(bool value) async {
+    if (value) {
+      // Toggled ON: Request OS permission using your existing service method
+      bool granted = await NotificationService().requestPermissions(context);
+      
+      if (granted) {
+        await SettingsService().setNotificationsEnabled(true); // SAVE STATE
+        
+        // Fetch all tasks from DB and restore their notifications
+        final allTasks = await AppDatabase().watchAllTaskItems().first;
+        await NotificationService().restoreAllNotifications(allTasks);
+
+        setState(() {
+          _hasNotificationPermission = true;
+          _notificationsEnabled = true;
+        });
+      } else {
+        await SettingsService().setNotificationsEnabled(false); // SAVE STATE
+        // Denied: Keep switch OFF and show SnackBar
+        setState(() {
+          _hasNotificationPermission = false;
+          _notificationsEnabled = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Notification permission denied. Please enable it in device settings.')),
+          );
+        }
+      }
+    } else {
+      // Toggled OFF: Disable locally
+      await SettingsService().setNotificationsEnabled(false); // SAVE STATE
+      await NotificationService().cancelAllNotifications();   // CANCEL ACTIVE ALERTS
+      setState(() {
+        _notificationsEnabled = false;
+      });
+    }
   }
 
   // Notification Test Functions
@@ -185,7 +244,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 const SizedBox(height: 20),
 
-                // Notifications section
+                // Notification section
                 const _SectionTitle(title: 'Notifications', subtitle: null),
                 const SizedBox(height: 8),
                 Card(
@@ -202,7 +261,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Switch.adaptive(
                           value: _notificationsEnabled,
                           activeThumbColor: kPrimaryBlue,
-                          onChanged: (v) => setState(() => _notificationsEnabled = v),
+                          onChanged: _handleSwitchToggled,
                         ),
                       ],
                     ),
@@ -212,7 +271,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: _notificationsEnabled ? _sendTestNotification : null,
+                    onPressed: (_notificationsEnabled && _hasNotificationPermission) ? _sendTestNotification : null,
                     icon: const Icon(Icons.notifications_active_outlined),
                     label: const Padding(
                       padding: EdgeInsets.symmetric(vertical: 14),
@@ -229,7 +288,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton( // Use OutlinedButton to distinguish it
-                    onPressed: _testScheduledNotification,
+                    onPressed: (_notificationsEnabled && _hasNotificationPermission) ? _testScheduledNotification : null,
                     child: const Text('Test 5-Second Delay'),
                   ),
                 ),

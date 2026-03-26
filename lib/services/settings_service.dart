@@ -43,4 +43,12 @@ class SettingsService {
     fontSizeNotifier.value = option;
     await _prefs?.setInt('fontSizeIndex', option.index);
   }
+
+    // Retrieves the saved notification state (defaults to true)
+  bool get notificationsEnabled => _prefs?.getBool('notifications_enabled') ?? true;
+
+  // Saves the notification state to device storage
+  Future<void> setNotificationsEnabled(bool value) async {
+    await _prefs?.setBool('notifications_enabled', value);
+  }
 }

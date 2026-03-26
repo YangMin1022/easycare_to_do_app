@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import '../task_item.dart';
+import 'settings_service.dart';
 
 // Split timezone imports to avoid analyzer confusion
 import 'package:timezone/timezone.dart' as tz;
@@ -75,6 +76,17 @@ class NotificationService {
     return true;
   }
 
+  Future<bool> checkPermissions() async {
+    if (Platform.isAndroid) {
+      final androidImplementation = _flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      final bool? enabled = await androidImplementation?.areNotificationsEnabled();
+      return enabled ?? false;
+    }
+    return true; 
+  }
+
   /// Cleans up any notifications that are no longer valid, 
   /// past their due date, or belong to deleted/completed tasks.
   Future<void> cleanUpOutdatedNotifications(List<TaskItem> allTasks) async {
@@ -133,6 +145,11 @@ class NotificationService {
       print("⚠️ Time is in the past. Notification will not fire.");
       return;
     }
+    // Check local settings before scheduling
+    if (!SettingsService().notificationsEnabled) {
+      print("⚠️ Notifications disabled in settings. Skipping schedule.");
+      return;
+    }
     // -----------------
 
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
@@ -171,6 +188,38 @@ class NotificationService {
   Future<List<PendingNotificationRequest>> getPendingNotificationRequests() async {
     return await _flutterLocalNotificationsPlugin.pendingNotificationRequests();
   }
+
+  /// Restores notifications for all pending, future tasks
+  Future<void> restoreAllNotifications(List<TaskItem> tasks) async {
+    final now = DateTime.now();
+
+    for (final task in tasks) {
+      // Skip completed tasks or tasks without IDs
+      if (task.completed || task.notificationId == null) continue;
+
+      // Re-schedule main due time alert
+      if (task.due.isAfter(now)) {
+        await scheduleReminder(
+          id: task.notificationId!,
+          title: "Task Due: ${task.title}",
+          body: "It is time for your task!",
+          scheduledTime: task.due,
+          payload: task.notificationId.toString(),
+        );
+      }
+
+      // Re-schedule the "reminder before" alert
+      if (task.reminderTime != null && task.reminderTime!.isAfter(now)) {
+        await scheduleReminder(
+          id: task.notificationId! + 1,
+          title: "Reminder: ${task.title}",
+          body: "Your task is due soon!",
+          scheduledTime: task.reminderTime!,
+          payload: (task.notificationId! + 1).toString(),
+        );
+      }
+    }
+  }
   
   /// Debug helper: logs pending requests to console.
   Future<void> debugPending() async {
@@ -206,5 +255,9 @@ class NotificationService {
 
   Future<void> cancelNotification(int id) async {
     await _flutterLocalNotificationsPlugin.cancel(id);
+  }
+
+  Future<void> cancelAllNotifications() async {
+    await _flutterLocalNotificationsPlugin.cancelAll();
   }
 }
