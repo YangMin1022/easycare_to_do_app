@@ -220,6 +220,20 @@ class _TaskListHomeState extends State<TaskListHome> {
   void initState() {
     super.initState();
     _searchCtrl.addListener(_onSearchChanged);
+    // Trigger the background cleanup as soon as the screen loads
+    _runStartupTasks();
+  }
+
+  Future<void> _runStartupTasks() async {
+    try {
+      // Fetch the current snapshot of all tasks from the database stream
+      final allTasks = await _db.watchAllTaskItems().first;
+      
+      // Pass them to our new NotificationService cleanup method
+      await NotificationService().cleanUpOutdatedNotifications(allTasks);
+    } catch (e) {
+      debugPrint('Failed to clean up notifications on startup: $e');
+    }
   }
 
   @override

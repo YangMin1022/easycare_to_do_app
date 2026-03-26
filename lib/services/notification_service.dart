@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+import '../task_item.dart';
 
 // Split timezone imports to avoid analyzer confusion
 import 'package:timezone/timezone.dart' as tz;
@@ -72,6 +73,44 @@ class NotificationService {
       return (grantedNotifications ?? false) && (grantedExactAlarms ?? true);
     }
     return true;
+  }
+
+  /// Cleans up any notifications that are no longer valid, 
+  /// past their due date, or belong to deleted/completed tasks.
+  Future<void> cleanUpOutdatedNotifications(List<TaskItem> allTasks) async {
+    // 1. Get all currently pending notifications from the OS
+    final pendingNotifications = await _flutterLocalNotificationsPlugin.pendingNotificationRequests();
+    
+    // 2. Build a Set of IDs that are valid and still in the future
+    final now = DateTime.now();
+    final validIds = <int>{};
+    
+    for (final task in allTasks) {
+      // Skip completed, deleted, or unscheduled tasks
+      if (task.completed || task.notificationId == null) continue;
+      
+      // If the main due time is in the future, its ID is valid
+      if (task.due.isAfter(now)) {
+        validIds.add(task.notificationId!);
+      }
+      
+      // If the reminder time is in the future, its secondary ID is valid
+      if (task.reminderTime != null && task.reminderTime!.isAfter(now)) {
+        validIds.add(task.notificationId! + 1);
+      }
+    }
+    
+    // 3. Compare and cancel any ghost/outdated notifications
+    int cancelledCount = 0;
+    for (final pending in pendingNotifications) {
+      if (!validIds.contains(pending.id)) {
+        await cancelNotification(pending.id);
+        cancelledCount++;
+        debugPrint('Cancelled outdated notification: id=${pending.id} title="${pending.title}"');
+      }
+    }
+    
+    debugPrint('Cleanup complete. Cancelled $cancelledCount old notifications.');
   }
 
   Future<void> scheduleReminder({

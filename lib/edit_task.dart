@@ -81,8 +81,8 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
   static bool _sameDate(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
   static bool _sameTime(TimeOfDay t, DateTime b) => t.hour == b.hour && t.minute == b.minute;
 
+  // Date Picker
   Future<void> _pickDate() async {
-    // Replace this method to call custom date picker if available
     final initial = _selectedDate;
     final first = DateTime.now().subtract(const Duration(days: 365 * 10));
     final last = DateTime.now().add(const Duration(days: 365 * 10));
@@ -141,13 +141,16 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
               ),
               // Spinner
               Expanded(
-                child: CupertinoDatePicker(
-                  mode: CupertinoDatePickerMode.time,
-                  initialDateTime: initialDateTime,
-                  use24hFormat: false,
-                  onDateTimeChanged: (DateTime newDate) {
-                    tempPickedDate = newDate;
-                  },
+                child: Transform.scale(
+                  scale: 1.3, // Enlarge the picker for better touch targets
+                  child: CupertinoDatePicker(
+                    mode: CupertinoDatePickerMode.time,
+                    initialDateTime: initialDateTime,
+                    use24hFormat: false,
+                    onDateTimeChanged: (DateTime newDate) {
+                      tempPickedDate = newDate;
+                    },
+                  ),
                 ),
               ),
             ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'data/app_database.dart';
 import 'task_item.dart';
 import 'edit_task.dart';
+import 'services/notification_service.dart';
 
 /// Reusable Task details screen widget.
 class TaskDetailsScreen extends StatelessWidget {
@@ -236,7 +237,7 @@ class TaskDetailsScreen extends StatelessWidget {
                         // Capture Navigator and ScaffoldMessenger BEFORE the async gap.
                         final NavigatorState navigator = Navigator.of(context);
 
-                        final ok = await showDialog<bool>(
+                        final confirm = await showDialog<bool>(
                           context: context,
                           builder: (ctx) => AlertDialog(
                             title: const Text('Delete Task'),
@@ -247,7 +248,14 @@ class TaskDetailsScreen extends StatelessWidget {
                             ],
                           ),
                         );
-                        if (ok == true) {
+                        if (confirm == true) {
+                          // Cancel the notification before deleting
+                          if (task.notificationId != null) {
+                            // Cancel the main due time notification
+                            await NotificationService().cancelNotification(task.notificationId!);
+                            // Cancel the reminder notification (base ID + 1)
+                            await NotificationService().cancelNotification(task.notificationId! + 1);
+                          }
                           if (onDelete != null) onDelete!(task);
                           navigator.maybePop();
                         }

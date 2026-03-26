@@ -281,20 +281,16 @@ class _AddTaskPageState extends State<AddTaskPage> {
     }
   }
 
-  // Built-in fallback pickers. Replace calls to these functions with custom pickers
+  // Built-in fallback pickers.
   Future<DateTime?> _showDatePickerFallback(BuildContext context, DateTime initialDate) async {
-    final first = DateTime.now().subtract(const Duration(days: 365));
-    final last = DateTime.now().add(const Duration(days: 365 * 2));
+    final first = DateTime.now();
+    final last = DateTime.now().add(const Duration(days: 365 * 10));
     final picked = await showDatePicker(context: context, initialDate: initialDate, firstDate: first, lastDate: last);
     return picked;
   }
 
-  /// Wrapper that tries to call custom picker; otherwise fallback.
-  /// Replace the body to call custom pickers.
+  // Date Picker
   Future<void> _pickDate() async {
-    // Example placeholder call to a custom picker:
-    // final picked = await showCustomDatePicker(context, _selectedDate);
-    // if (picked == null) return;
     final picked = await _showDatePickerFallback(context, _selectedDate ?? DateTime.now());
     if (picked != null) {
       setState(() => _selectedDate = picked);
@@ -347,14 +343,16 @@ class _AddTaskPageState extends State<AddTaskPage> {
               ),
               // --- The Spinner Widget ---
               Expanded(
-                child: CupertinoDatePicker(
-                  mode: CupertinoDatePickerMode.time,
-                  initialDateTime: initialDateTime,
-                  use24hFormat: false, // Sets AM/PM mode like your image
-                  // This callback runs every time the wheel moves
-                  onDateTimeChanged: (DateTime newDate) {
-                    tempPickedDate = newDate;
-                  },
+                child: Transform.scale(
+                  scale: 1.3, // Enlarge the picker for better touch targets
+                  child: CupertinoDatePicker(
+                    mode: CupertinoDatePickerMode.time,
+                    initialDateTime: initialDateTime,
+                    use24hFormat: false,
+                    onDateTimeChanged: (DateTime newDate) {
+                      tempPickedDate = newDate;
+                    },
+                  ),
                 ),
               ),
             ],
