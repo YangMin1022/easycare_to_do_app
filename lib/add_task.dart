@@ -41,6 +41,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   Duration? _selectedReminder; // e.g., Duration(hours:1)
+  ReminderType? _selectedReminderType;
   bool _sameDate(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
@@ -57,7 +58,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     // default due date = today at 09:00
     final now = DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
-    _selectedTime = const TimeOfDay(hour: 9, minute: 0);
+    _selectedTime = null;
     _selectedReminder = const Duration(hours: 1);
     _transcriptController = TextEditingController(text: _transcript);
 
@@ -167,6 +168,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
       // 4. Auto-set Reminder (if found)
       if (data.reminder != null) {
          _selectedReminder = data.reminder;
+         _selectedReminderType = data.reminderType;
       }
     });
 
@@ -203,42 +205,57 @@ class _AddTaskPageState extends State<AddTaskPage> {
         title = _titleController.text.trim();
         note = _noteController.text.trim();
       }
-      //DATE SETUP
-      final due = DateTime(
-          _selectedDate!.year,
-          _selectedDate!.month,
-          _selectedDate!.day,
-          _selectedTime!.hour,
-          _selectedTime!.minute,
-        );
-      //CALCULATE REMINDER & DUE NOTIFICATION LOGIC
+
+      // --- NULL-SAFE DATE SETUP & SCHEDULING ---
+      final now = DateTime.now();
+      DateTime finalDue;
+      DateTime? reminderTime;
       int baseNotificationId = Random().nextInt(50000000); 
 
-      // 1. ALWAYS schedule the notification for the exact Due Time (e.g., 9:00 AM)
-      await NotificationService().scheduleReminder(
-        id: baseNotificationId,
-        title: "Task Due: $title",
-        body: "It is time for your task!",
-        scheduledTime: due,
-        payload: baseNotificationId.toString(),
-      );
-      
-      // 2. Check if a reminder was selected and schedule a SECOND notification (e.g., 7:00 AM)
-      DateTime? reminderTime;
-      if (_selectedReminder != null) {
-        reminderTime = due.subtract(_selectedReminder!);
-        
-        // Use a deterministic ID for the reminder by adding 1 to the base ID
-        int reminderNotificationId = baseNotificationId + 1;
+      bool hasExplicitTime = _selectedTime != null;
 
+      if (hasExplicitTime) {
+        // SCENARIO A: User provided a time (e.g., "Meeting at 9am")
+        final d = _selectedDate ?? now;
+        finalDue = DateTime(d.year, d.month, d.day, _selectedTime!.hour, _selectedTime!.minute);
+
+        await NotificationService().scheduleReminder(
+          id: baseNotificationId,
+          title: "Task Due: $title",
+          body: "It is time for your task!",
+          scheduledTime: finalDue,
+          payload: baseNotificationId.toString(),
+        );
+
+        if (_selectedReminder != null) {
+          if (_selectedReminderType == ReminderType.fromNow) {
+            reminderTime = now.add(_selectedReminder!);
+          } else {
+            reminderTime = finalDue.subtract(_selectedReminder!);
+          }
+        }
+      } else {
+        // SCENARIO B: Time-less task (e.g., "Remind me to buy milk")
+        if (_selectedReminder != null) {
+          reminderTime = now.add(_selectedReminder!);
+          finalDue = reminderTime; 
+        } else {
+          final d = _selectedDate ?? now;
+          finalDue = DateTime(d.year, d.month, d.day, 23, 59); 
+        }
+      }
+
+      if (reminderTime != null) {
+        int reminderNotificationId = baseNotificationId + 1;
         await NotificationService().scheduleReminder(
           id: reminderNotificationId,
           title: "Reminder: $title",
-          body: "Due at ${_timeLabel()}",
+          body: hasExplicitTime ? "Due at ${_timeLabel()}" : "Task Reminder!",
           scheduledTime: reminderTime,
           payload: reminderNotificationId.toString(), 
         );
       }
+      
       //Task Item
       final newId = DateTime.now().millisecondsSinceEpoch.toString();
       final task = TaskItem(
@@ -246,7 +263,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
         title: title,
         note: note,
         // note: _noteController.text.trim().isEmpty ? '' : _noteController.text.trim(),
-        due: due,
+        due: finalDue,
         reminderBefore: _selectedReminder,
         reminderTime: reminderTime,
         notificationId: baseNotificationId,
@@ -364,11 +381,13 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
   // Helper to format display of date/time
   String _dateLabel() {
+    if (_selectedDate == null) return 'None';
     final d = _selectedDate!;
     return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
   }
 
   String _timeLabel() {
+    if (_selectedTime == null) return 'None';
     final t = _selectedTime!;
     final hour = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
     final suffix = t.period == DayPeriod.am ? 'AM' : 'PM';
@@ -449,7 +468,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
               decoration: InputDecoration(
                 hintText: 'Transcript will appear here. Edit if necessary before saving.',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                contentPadding: const EdgeInsets.all(12),
+                contentPadding: const EdgeInsets.all(6),
               ),
               // controller: TextEditingController(text: _transcript),
               // onChanged: (v) => setState(() => _transcript = v),
@@ -525,7 +544,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
                     setState(() {
                       _selectedDate = DateTime(now.year, now.month, now.day);
                     });
-                  }, selected: _sameDate(DateTime.now(), _selectedDate!), ),
+                  }, selected: _selectedDate != null && _sameDate(DateTime.now(), _selectedDate!), ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -534,7 +553,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
                     setState(() {
                       _selectedDate = DateTime(tomorrow.year, tomorrow.month, tomorrow.day);
                     });
-                  }, selected: _sameDate(DateTime.now().add(const Duration(days: 1)), _selectedDate!),),
+                  }, selected: _selectedDate != null && _sameDate(DateTime.now().add(const Duration(days: 1)), _selectedDate!),),
                 ),
               ],
             ),

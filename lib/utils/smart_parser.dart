@@ -1,17 +1,21 @@
 // lib/utils/smart_parser.dart
 import 'package:flutter/material.dart';
 
+enum ReminderType { before, fromNow }
+
 class ParsedData {
   final String title;
   final DateTime? date;
   final TimeOfDay? time;
   final Duration? reminder;
+  final ReminderType? reminderType;
 
   ParsedData({
     required this.title,
     this.date,
     this.time,
     this.reminder,
+    this.reminderType,
   });
 }
 
@@ -21,33 +25,65 @@ class SmartParser {
     DateTime? foundDate;
     TimeOfDay? foundTime;
     Duration? foundReminder;
+    ReminderType? reminderType;
 
     final now = DateTime.now();
 
     // --- 1. EXTRACT DYNAMIC REMINDER FIRST ---
     // We do this first so "2 hours" doesn't get confused with "2:00 PM"
     // Matches: "remind me 2 hours", "remind me in 30 mins", "remind me 1 day before"
-    final reminderRegex = RegExp(r'reminds?\s+me\s+(?:in\s+|before\s+)?(\d+)\s*(hour|hr|minute|min|day)s?(?:\s+before)?', caseSensitive: false);
+    final reminderRegex = RegExp(r'reminds?\s+me\s+(in|before)?\s*((?:\d+\s*(?:hour|hr|minute|min|day)s?\s*)+)\s*(before)?', caseSensitive: false);
     final reminderMatch = reminderRegex.firstMatch(cleanText);
 
     if (reminderMatch != null) {
-      final value = int.parse(reminderMatch.group(1)!);
-      final unit = reminderMatch.group(2)!.toLowerCase();
+      final prefix = reminderMatch.group(1)?.toLowerCase(); // "in", "before", or null
+      final durationText = reminderMatch.group(2)!;         // "2 hours 30 minutes"
+      final suffix = reminderMatch.group(3)?.toLowerCase(); // "before" or null
 
-      if (unit.startsWith('min')) {
-        foundReminder = Duration(minutes: value);
-      } else if (unit.startsWith('hour') || unit.startsWith('hr')) {
-        foundReminder = Duration(hours: value);
-      } else if (unit.startsWith('day')) {
-        foundReminder = Duration(days: value);
+      // Determine type safely
+      if (suffix == 'before' || prefix == 'before') {
+        reminderType = ReminderType.before;
+      } else if (prefix == 'in') {
+        reminderType = ReminderType.fromNow;
+      } else {
+        // Default fallback if they just say "remind me 30 mins" 
+        reminderType = ReminderType.fromNow; 
       }
       
+      final unitRegex = RegExp(
+        r'(\d+)\s*(hour|hr|minute|min|day)s?',
+        caseSensitive: false,
+      );
+
+      int totalMinutes = 0;
+      int totalHours = 0;
+      int totalDays = 0;
+
+      for (final match in unitRegex.allMatches(durationText)) {
+        final value = int.parse(match.group(1)!);
+        final unit = match.group(2)!.toLowerCase();
+
+        if (unit.startsWith('min')) {
+          totalMinutes += value;
+        } else if (unit.startsWith('hour') || unit.startsWith('hr')) {
+          totalHours += value;
+        } else if (unit.startsWith('day')) {
+          totalDays += value;
+        }
+      }
+
+      foundReminder = Duration(
+        days: totalDays,
+        hours: totalHours,
+        minutes: totalMinutes,
+      );
       // Remove the reminder phrase from the title
       cleanText = cleanText.replaceAll(reminderMatch.group(0)!, '');
     } 
     // Fallback: If they just said "remind me" without a time
     else if (cleanText.toLowerCase().contains(RegExp(r'reminds?\s+me'))) {
       foundReminder = const Duration(hours: 1); // Default
+      reminderType = ReminderType.before;
       cleanText = cleanText.replaceAll(RegExp(r'\breminds?\s+me\b', caseSensitive: false), '').trim();
     }
 
@@ -108,6 +144,7 @@ class SmartParser {
       date: foundDate,
       time: foundTime,
       reminder: foundReminder,
+      reminderType: reminderType,
     );
   }
 
@@ -143,46 +180,37 @@ class SmartParser {
     final now = DateTime.now();
 
     // Check "15 June" format
-    for (final match in dayMonthRegex.allMatches(text)) {
-      final dayStr = match.group(1);
-      final monthStr = match.group(3)?.toLowerCase();
+    final todayAtMidnight = DateTime(now.year, now.month, now.day);
 
-      if (dayStr != null && monthStr != null && months.containsKey(monthStr)) {
-        final day = int.parse(dayStr);
-        final month = months[monthStr]!;
-        
-        // Logic: If the date has passed this year, assume next year
-        int year = now.year;
-        if (DateTime(year, month, day).isBefore(now.subtract(const Duration(days: 1)))) {
-           year++; 
-        }
+    _DateMatch? processMatch(String? monthStr, String? dayStr, String fullMatch) {
+      if (monthStr == null || dayStr == null) return null;
+      final monthKey = monthStr.toLowerCase();
+      if (!months.containsKey(monthKey)) return null;
 
-        return _DateMatch(
-          date: DateTime(year, month, day),
-          matchString: match.group(0)!,
-        );
+      final day = int.parse(dayStr);
+      final month = months[monthKey]!;
+      int year = now.year;
+
+      final parsedDateThisYear = DateTime(year, month, day);
+
+      if (parsedDateThisYear.isBefore(todayAtMidnight)) {
+        year++;
       }
+
+      return _DateMatch(
+        date: DateTime(year, month, day),
+        matchString: fullMatch,
+      );
     }
 
-    // Check "June 15" format
+    for (final match in dayMonthRegex.allMatches(text)) {
+      final result = processMatch(match.group(3), match.group(1), match.group(0)!);
+      if (result != null) return result;
+    }
+
     for (final match in monthDayRegex.allMatches(text)) {
-      final monthStr = match.group(1)?.toLowerCase();
-      final dayStr = match.group(2);
-
-      if (dayStr != null && monthStr != null && months.containsKey(monthStr)) {
-        final day = int.parse(dayStr);
-        final month = months[monthStr]!;
-        
-        int year = now.year;
-        if (DateTime(year, month, day).isBefore(now.subtract(const Duration(days: 1)))) {
-           year++; 
-        }
-
-        return _DateMatch(
-          date: DateTime(year, month, day),
-          matchString: match.group(0)!,
-        );
-      }
+      final result = processMatch(match.group(1), match.group(2), match.group(0)!);
+      if (result != null) return result;
     }
 
     return null;
