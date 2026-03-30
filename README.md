@@ -1,6 +1,9 @@
+***
+
+```markdown
 # 🎙️ Smart Voice Task & Reminder App
 
-A Flutter-based intelligent task management application developed as a Final Year Project (FYP). This app leverages Natural Language Processing (NLP) to allow users to create tasks and reminders using conversational voice commands or text input. 
+A Flutter-based intelligent task management application developed as a Final Year Project (FYP). This app leverages Natural Language Processing (NLP) to allow users to create complex tasks and reminders using conversational voice commands or text input. 
 
 ## ✨ Key Features
 
@@ -32,7 +35,7 @@ The core of this FYP is the custom-built `SmartParser`. It uses advanced Regular
 | *"Take medication today at 8 am, remind me 30 mins before"* | Take medication | Today, 08:00 | 30 minutes before |
 | *"Doctor appointment on 15 June at 10 am"* | Doctor appointment | 15 June, 10:00 | 1 hour before (Fallback) |
 | *"Remind me to buy milk in 2 hours"* | Buy milk | Time-less | +2 hours from now |
-| *"Check oven in 15 minutes* | Check oven | Time-less | +15 minutes from now |
+| *"Check oven in 15 minutes"* | Check oven | Time-less | +15 minutes from now |
 
 ---
 
@@ -58,4 +61,44 @@ A quick look at the core files driving the intelligence of the app:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/YangMin1022/easycare_to_do_app.git
+   git clone [https://github.com/](https://github.com/)[your-username]/[your-repo-name].git
+   ```
+2. Navigate to the project directory:
+   ```bash
+   cd [your-repo-name]
+   ```
+3. Install dependencies:
+   ```bash
+   flutter pub get
+   ```
+4. Run the application:
+   ```bash
+   flutter run
+   ```
+
+*(Note: Voice dictation requires a physical device or an emulator with a configured microphone and internet connection).*
+
+---
+
+## 🧪 Testing
+
+The NLP parsing logic has been rigorously tested against various edge cases, including:
+*   Standard Date/Time formats (e.g., "15 June", "June 15th")
+*   Relative Time constraints (e.g., "in 2 hours", "1 day before")
+*   Time-less scheduling fallbacks (e.g., "Remind me tomorrow")
+*   Punctuation variants (e.g., "9a.m.", "6pm")
+
+---
+
+## 🎓 Academic Context
+
+This project was developed as a Final Year Project by **[Your Name Here]** at **[Your University Here]**. 
+
+It demonstrates proficiency in cross-platform mobile development, asynchronous programming, natural language text processing, and user-centric UI/UX design.
+
+---
+
+### A quick tip for your FYP presentation:
+If you have to do a live demo or write a report for your professors, **heavily emphasize the problem-solving we did around "Time-less Tasks" (Scenario B) and the "Middleman Bug"**. Explaining how you handled edge cases where a user doesn't provide an exact time (and dynamically calculating "Now + 1 hour" safely) shows a massive amount of real-world software engineering maturity. 
+
+Good luck with the rest of your FYP! Let me know if you need to add any other sections to this!
