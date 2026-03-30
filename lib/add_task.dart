@@ -435,55 +435,60 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
   Widget _voiceView() {
     return Expanded(
-      child: Column(
-        // Centers children vertically & horizontally
-        mainAxisAlignment: MainAxisAlignment.center, 
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const SizedBox(height: 20),
-          // Large circle mic
-          Semantics(
-            label: 'Voice dictation',
-            child: GestureDetector(
-              onTap: _startOrStopDictation,
-              child: CircleAvatar(
-                radius: 44,
-                backgroundColor: _isListening ? Colors.redAccent : (_speechEnabled ? _primary : _surface),
-                child: Icon(Icons.mic, color: _isListening ? Colors.white : Colors.white, size: 60),
+      child: Center( // Keeps content vertically centered when there's extra space
+        child: SingleChildScrollView( // Allows scrolling when content exceeds screen height
+          child: Column(
+            // Centers children vertically & horizontally
+            mainAxisAlignment: MainAxisAlignment.center, 
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 20),
+              // Large circle mic
+              Semantics(
+                label: 'Voice dictation',
+                child: GestureDetector(
+                  onTap: _startOrStopDictation,
+                  child: CircleAvatar(
+                    radius: 44,
+                    backgroundColor: _isListening ? Colors.redAccent : (_speechEnabled ? _primary : _surface),
+                    child: Icon(Icons.mic, color: _isListening ? Colors.white : Colors.white, size: 60),
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(_isListening ? 'Listening...' : (_speechEnabled ? 'Tap to speak' : 'Mic unavailable'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Text(
-              'Tap the microphone and speak your task.\n\nExample: "Take medication at 8 AM on June 26. Remind me 2 hours before."',
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade700, height: 1.4),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 24),
-          // Show transcript editor for confirmation (editable)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: TextField(
-              minLines: 2,
-              maxLines: 4,
-              decoration: InputDecoration(
-                hintText: 'Transcript will appear here. Edit if necessary before saving.',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                contentPadding: const EdgeInsets.all(6),
+              const SizedBox(height: 12),
+              Text(_isListening ? 'Listening...' : (_speechEnabled ? 'Tap to speak' : 'Mic unavailable'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Text(
+                  'Tap the microphone and speak your task.\n\nExample: "Take medication at 8 AM on June 26. Remind me 2 hours before."',
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade700, height: 1.4),
+                  textAlign: TextAlign.center,
+                ),
               ),
-              // controller: TextEditingController(text: _transcript),
-              // onChanged: (v) => setState(() => _transcript = v),
-              controller: _transcriptController, 
-              // Update the state variable when user types manually
-              onChanged: (v) => _transcript = v,
-            ),
+              const SizedBox(height: 24),
+              // Show transcript editor for confirmation (editable)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: TextField(
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    hintText: 'Transcript will appear here. Edit if necessary before saving.',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.all(6),
+                  ),
+                  // controller: TextEditingController(text: _transcript),
+                  // onChanged: (v) => setState(() => _transcript = v),
+                  controller: _transcriptController, 
+                  // Update the state variable when user types manually
+                  onChanged: (v) => _transcript = v,
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -30,11 +30,11 @@ class SettingsService {
   double get textScaleFactor {
     switch (fontSizeNotifier.value) {
       case FontSizeOption.small:
-        return 0.85; // 15% smaller
+        return 1.0; // Default size
       case FontSizeOption.medium:
-        return 1.0;  // Default size
+        return 1.25;  // 25% larger
       case FontSizeOption.large:
-        return 1.25; // 25% larger
+        return 1.50; // 50% larger
     }
   }
 
