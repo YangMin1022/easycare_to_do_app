@@ -91,6 +91,6 @@ The NLP parsing logic has been rigorously tested against various edge cases, inc
 
 This project was developed as a Final Year Project by **Poh Yang Min** at **Peninsula College, The Ship Campus**. 
 
-It demonstrates proficiency in cross-platform mobile development, asynchronous programming, natural language text processing, and user-centric UI/UX design.
+It demonstrates proficiency in mobile development, asynchronous programming, natural language text processing, and user-centric UI/UX design.
 
 ---
