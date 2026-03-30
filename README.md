@@ -1,6 +1,6 @@
 # 🎙️ Smart Voice Task & Reminder App
 
-A Flutter-based intelligent task management application developed as a Final Year Project (FYP). This app leverages Natural Language Processing (NLP) to allow users to create complex tasks and reminders using conversational voice commands or text input. 
+A Flutter-based intelligent task management application developed as a Final Year Project (FYP). This app leverages Natural Language Processing (NLP) to allow users to create tasks and reminders using conversational voice commands or text input. 
 
 ## ✨ Key Features
 
@@ -15,7 +15,7 @@ A Flutter-based intelligent task management application developed as a Final Yea
 ## 🛠️ Tech Stack
 
 *   **Framework:** [Flutter](https://flutter.dev/) (Dart)
-*   **Local Storage:** [Mention your DB here, e.g., SQLite / Hive / Isar]
+*   **Local Storage:** Drift
 *   **Speech Recognition:** `speech_to_text` (or your specific speech package)
 *   **Notifications:** `flutter_local_notifications`
 
@@ -32,7 +32,7 @@ The core of this FYP is the custom-built `SmartParser`. It uses advanced Regular
 | *"Take medication today at 8 am, remind me 30 mins before"* | Take medication | Today, 08:00 | 30 minutes before |
 | *"Doctor appointment on 15 June at 10 am"* | Doctor appointment | 15 June, 10:00 | 1 hour before (Fallback) |
 | *"Remind me to buy milk in 2 hours"* | Buy milk | Time-less | +2 hours from now |
-| *"Check oven 15 minutes before"* | Check oven | Time-less | +15 minutes from now |
+| *"Check oven in 15 minutes* | Check oven | Time-less | +15 minutes from now |
 
 ---
 
@@ -58,4 +58,4 @@ A quick look at the core files driving the intelligence of the app:
 
 1. Clone the repository:
    ```bash
-   git clone [https://github.com/](https://github.com/)[your-username]/[your-repo-name].git
+   git clone https://github.com/YangMin1022/easycare_to_do_app.git
