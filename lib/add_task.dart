@@ -151,9 +151,11 @@ class _AddTaskPageState extends State<AddTaskPage> {
     final data = SmartParser.parse(rawText);
 
     setState(() {
+      // --- FIX: Provide a default title if the parser stripped all the text! ---
+      String finalTitle = data.title.trim().isEmpty ? "Quick Reminder" : data.title;
       // 1. Auto-fill Title
-      _transcript = data.title; // Update the transcript view
-      _titleController.text = data.title; // Also sync Type mode controller just in case
+      _transcript = finalTitle; // Update the transcript view
+      _titleController.text = finalTitle; // Also sync Type mode controller just in case
 
       // 2. Auto-set Date (if found)
       if (data.date != null) {
@@ -236,7 +238,11 @@ class _AddTaskPageState extends State<AddTaskPage> {
         }
       } else {
         // SCENARIO B: Time-less task (e.g., "Remind me to buy milk")
-        if (_selectedReminder != null) {
+        if (_selectedDate != null && !_sameDate(_selectedDate!, now)) {
+            // If they gave a future date but no time, default to 9 AM on that day
+            finalDue = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, 9, 0);
+            reminderTime = finalDue;
+        } else if (_selectedReminder != null) {
           reminderTime = now.add(_selectedReminder!);
           finalDue = reminderTime; 
         } else {

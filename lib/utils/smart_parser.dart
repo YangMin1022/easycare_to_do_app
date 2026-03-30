@@ -32,7 +32,8 @@ class SmartParser {
     // --- 1. EXTRACT DYNAMIC REMINDER FIRST ---
     // We do this first so "2 hours" doesn't get confused with "2:00 PM"
     // Matches: "remind me 2 hours", "remind me in 30 mins", "remind me 1 day before"
-    final reminderRegex = RegExp(r'reminds?\s+me\s+(in|before)?\s*((?:\d+\s*(?:hour|hr|minute|min|day)s?\s*)+)\s*(before)?', caseSensitive: false);
+    // final reminderRegex = RegExp(r'reminds?\s+me\s+(in|before)?\s*((?:\d+\s*(?:hour|hr|minute|min|day)s?\s*)+)\s*(before)?', caseSensitive: false);
+    final reminderRegex = RegExp(r'\b(in|before)?\s*((?:\d+\s*(?:hour|hr|minute|min|day)s?\s*)+)\s*(before)?\b', caseSensitive: false);
     final reminderMatch = reminderRegex.firstMatch(cleanText);
 
     if (reminderMatch != null) {
@@ -81,10 +82,24 @@ class SmartParser {
       cleanText = cleanText.replaceAll(reminderMatch.group(0)!, '');
     } 
     // Fallback: If they just said "remind me" without a time
-    else if (cleanText.toLowerCase().contains(RegExp(r'reminds?\s+me'))) {
-      foundReminder = const Duration(hours: 1); // Default
-      reminderType = ReminderType.before;
-      cleanText = cleanText.replaceAll(RegExp(r'\breminds?\s+me\b', caseSensitive: false), '').trim();
+    // else if (cleanText.toLowerCase().contains(RegExp(r'reminds?\s+me'))) {
+    //   foundReminder = const Duration(hours: 1); // Default
+    //   reminderType = ReminderType.before;
+    //   cleanText = cleanText.replaceAll(RegExp(r'\breminds?\s+me\b', caseSensitive: false), '').trim();
+    // }
+    // --- STRIP "REMIND ME" & HANDLE FALLBACK ---
+    // Now we clean up the words "remind me" separately
+    if (cleanText.toLowerCase().contains(RegExp(r'reminds?\s+me'))) {
+      if (foundReminder == null) {
+        // ONLY apply the 1-hour fallback if no specific time was found earlier
+        foundReminder = const Duration(hours: 1);
+        reminderType = ReminderType.before;
+      }
+      // Pro-tip: This regex also removes the word "to" if it follows "remind me"
+      // So "Remind me to buy milk" elegantly becomes "Buy milk"!
+      cleanText = cleanText
+          .replaceAll(RegExp(r'\breminds?\s+me\s*(?:to\s+)?', caseSensitive: false), '')
+          .trim();
     }
 
     // --- 2. RELATIVE DATES (Tomorrow, Today) ---
