@@ -61,11 +61,11 @@ A quick look at the core files driving the intelligence of the app:
 
 1. Clone the repository:
    ```bash
-   git clone [https://github.com/](https://github.com/)[your-username]/[your-repo-name].git
+   git clone https://github.com/YangMin1022/easycare_to_do_app.git
    ```
 2. Navigate to the project directory:
    ```bash
-   cd [your-repo-name]
+   cd [repo-name]
    ```
 3. Install dependencies:
    ```bash
@@ -76,7 +76,7 @@ A quick look at the core files driving the intelligence of the app:
    flutter run
    ```
 
-*(Note: Voice dictation requires a physical device or an emulator with a configured microphone and internet connection).*
+*(Note: Voice dictation requires a physical device or an emulator with a configured microphone).*
 
 ---
 
@@ -92,13 +92,8 @@ The NLP parsing logic has been rigorously tested against various edge cases, inc
 
 ## 🎓 Academic Context
 
-This project was developed as a Final Year Project by **[Your Name Here]** at **[Your University Here]**. 
+This project was developed as a Final Year Project by **Poh Yang Min** at **Peninsula College, The Ship Campus**. 
 
 It demonstrates proficiency in cross-platform mobile development, asynchronous programming, natural language text processing, and user-centric UI/UX design.
 
 ---
-
-### A quick tip for your FYP presentation:
-If you have to do a live demo or write a report for your professors, **heavily emphasize the problem-solving we did around "Time-less Tasks" (Scenario B) and the "Middleman Bug"**. Explaining how you handled edge cases where a user doesn't provide an exact time (and dynamically calculating "Now + 1 hour" safely) shows a massive amount of real-world software engineering maturity. 
-
-Good luck with the rest of your FYP! Let me know if you need to add any other sections to this!
