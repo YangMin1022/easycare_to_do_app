@@ -8,7 +8,9 @@ class SettingsService {
   factory SettingsService() => _instance;
   SettingsService._internal();
 
-  // Notifier to let the UI know when the font size changes
+  // A reactive variable that broadcasts font size changes. 
+  // In `main.dart`, a `ValueListenableBuilder` listens to this notifier and instantly
+  // rebuilds the entire `MaterialApp` with the new text scale when it changes.
   final ValueNotifier<FontSizeOption> fontSizeNotifier = ValueNotifier(FontSizeOption.medium);
   SharedPreferences? _prefs;
 
@@ -16,8 +18,9 @@ class SettingsService {
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
     
-    // We save the enum as an integer index (0=small, 1=medium, 2=large)
-    // Default to 1 (medium) if no value is saved yet.
+    // Enums cannot be saved directly to SharedPreferences, so we save them as integer indexes.
+    // 0 = small, 1 = medium, 2 = large.
+    // We default to 1 (medium) if the user is opening the app for the very first time.
     final savedIndex = _prefs?.getInt('fontSizeIndex') ?? 1; 
     
     // Safely map the integer back to the Enum
@@ -26,7 +29,8 @@ class SettingsService {
     }
   }
 
-  // Converts the selected option into an actual multiplier
+  /// Converts the currently selected `FontSizeOption` enum into an actual double multiplier.
+  /// This multiplier is fed directly into Flutter's `TextScaler.linear()` in `main.dart`.
   double get textScaleFactor {
     switch (fontSizeNotifier.value) {
       case FontSizeOption.small:
@@ -41,10 +45,11 @@ class SettingsService {
   // 2. SAVE: Update the notifier and write the new value to device storage
   Future<void> setFontSize(FontSizeOption option) async {
     fontSizeNotifier.value = option;
+    // Persist the choice for the next time the app launches
     await _prefs?.setInt('fontSizeIndex', option.index);
   }
 
-    // Retrieves the saved notification state (defaults to true)
+  // Retrieves the saved notification state (defaults to true)
   bool get notificationsEnabled => _prefs?.getBool('notifications_enabled') ?? true;
 
   // Saves the notification state to device storage

@@ -2,17 +2,23 @@
 import 'package:intl/intl.dart';
 import '../task_item.dart';
 import 'tts_service.dart';
-
+// Global instance of the TTS Singleton service.
 final _tts = TtsService();
 
+// Formats a [TaskItem] into a natural, conversational string optimized for text-to-speech.
+ 
+// Standard DateTime strings (like "2026-03-31") sound terrible when read aloud by a robot.
+// This helper uses the `intl` package to convert the date into a human-friendly format
+// so the TTS engine speaks naturally.
 String _formatTaskForSpeech(TaskItem t) {
-  // Human-readable date: "Friday November 7th"
+  // Convert to human-readable date: "Friday November 7th"
   final date = DateFormat('EEEE MMMM d').format(t.due);
-  // Human-readable time: "8:30 AM"
+  // Convert to human-readable time: "8:30 AM"
   final time = DateFormat('h:mm a').format(t.due);
   
   String text = 'Task: ${t.title}.';
   
+  // Only append the note if one actually exists, preventing awkward pauses
   if (t.note.isNotEmpty) {
     text += ' Note: ${t.note}.';
   }
@@ -28,7 +34,7 @@ Future<void> readSingleTask(TaskItem t) async {
     await _tts.stop();
     return; // Acts as a toggle
   }
-
+  // Initialize and Speak
   await _tts.init();
   final text = _formatTaskForSpeech(t);
   await _tts.speak(text);
@@ -48,7 +54,7 @@ Future<void> readAllTasks(List<TaskItem> tasks) async {
     await _tts.speak('You have no tasks to do right now.');
     return;
   }
-
+  // Provide contextual summary before reading individual tasks
   await _tts.speak('You have ${tasks.length} tasks.');
   
   // Loop through and read each one. 
