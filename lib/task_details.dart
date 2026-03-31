@@ -7,6 +7,7 @@ import 'services/notification_service.dart';
 /// Reusable Task details screen widget.
 class TaskDetailsScreen extends StatelessWidget {
   final TaskItem task;
+  // Callbacks to notify the parent screen of user actions
   final void Function(TaskItem)? onMarkDone;
   final void Function(TaskItem)? onEdit;
   final void Function(TaskItem)? onDelete;
@@ -21,6 +22,7 @@ class TaskDetailsScreen extends StatelessWidget {
 
   static const Color _primary = Color(0xFF0A6CF0);
 
+  // Converts a [Duration] object into a human-readable string for the UI.
   String formatDuration(Duration? duration) {
     if (duration == null) return 'No reminder';
 
@@ -35,6 +37,7 @@ class TaskDetailsScreen extends StatelessWidget {
       }
     }
 
+  // Helper function to format a DateTime into a long date string (e.g. "Friday, November 7, 2025").
   String _formatDateLong(DateTime dt) {
     // e.g. Friday, November 7, 2025
     const months = [
@@ -46,6 +49,7 @@ class TaskDetailsScreen extends StatelessWidget {
     return '$w, $m ${dt.day.toString().padLeft(2, '0')}, ${dt.year}';
   }
 
+  // Helper function to format a DateTime into a 12-hour time string (e.g. "2:30 PM").
   String _formatTime(DateTime dt) {
     final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
     final min = dt.minute.toString().padLeft(2, '0');
@@ -53,6 +57,7 @@ class TaskDetailsScreen extends StatelessWidget {
     return '$hour:$min $ampm';
   }
 
+  // Helper widget to create a section label with an icon and text.
   Widget _sectionLabel(IconData icon, String label) {
     return Row(
       children: [
@@ -63,6 +68,7 @@ class TaskDetailsScreen extends StatelessWidget {
     );
   }
 
+  // Helper widget to create a styled info box for displaying task details like notes, due date, etc.
   Widget _infoBox(Widget child) {
     return Container(
       width: double.infinity,
@@ -78,6 +84,7 @@ class TaskDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Use MediaQuery to get the safe area insets for proper padding of the bottom buttons.
     final safe = MediaQuery.of(context).padding;
     return Scaffold(
       backgroundColor: Colors.white,
@@ -96,7 +103,9 @@ class TaskDetailsScreen extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
             children: [
-              // Content scrolls; keep header and buttons fixed.
+              // SCROLLABLE CONTENT AREA
+              // Using Expanded allows the content to scroll freely while pushing 
+              // the action buttons to the absolute bottom of the screen.
               Expanded(
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
@@ -163,7 +172,7 @@ class TaskDetailsScreen extends StatelessWidget {
                         Text(formatDuration(task.reminderBefore), style: const TextStyle(fontSize: 16)),
                       ),
 
-                      // Created / updated metadata
+                      // Created / updated metadata (Audit trail for when tasks were created/edited)
                       _infoBox(
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -183,13 +192,14 @@ class TaskDetailsScreen extends StatelessWidget {
 
               // Bottom action buttons
               Padding(
+                // Add extra bottom padding to account for devices with gesture navigation bars or notches.
                 padding: EdgeInsets.fromLTRB(0, 8, 0, safe.bottom + 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Hide Mark as Done and Edit if task is completed
                     if (!task.completed) ...[
-                      // Primary: Mark as Done
+                      // Primary: Mark as Done button
                       ElevatedButton.icon(
                         onPressed: () {
                           if (onMarkDone != null) onMarkDone!(task);
@@ -208,7 +218,7 @@ class TaskDetailsScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
 
-                      // Secondary: Edit (outlined)
+                      // Secondary: Edit button
                       OutlinedButton.icon(
                         onPressed: () {
                           if (onEdit != null) {
@@ -231,10 +241,11 @@ class TaskDetailsScreen extends StatelessWidget {
                       const SizedBox(height: 10),
                     ],
 
-                    // Danger: Delete
+                    // Danger: Delete button
                     ElevatedButton.icon(
                       onPressed: () async {
                         // Capture Navigator and ScaffoldMessenger BEFORE the async gap.
+                        // This prevents crashes if the context is disposed while the dialog is open
                         final NavigatorState navigator = Navigator.of(context);
 
                         final confirm = await showDialog<bool>(
@@ -249,13 +260,14 @@ class TaskDetailsScreen extends StatelessWidget {
                           ),
                         );
                         if (confirm == true) {
-                          // Cancel the notification before deleting
+                          // Cancel any pending notifications for this task to prevent ghost notifications after deletion
                           if (task.notificationId != null) {
                             // Cancel the main due time notification
                             await NotificationService().cancelNotification(task.notificationId!);
                             // Cancel the reminder notification (base ID + 1)
                             await NotificationService().cancelNotification(task.notificationId! + 1);
                           }
+                          // Notify parent to execute DB deletion and pop back to the previous screen
                           if (onDelete != null) onDelete!(task);
                           navigator.maybePop();
                         }

@@ -12,7 +12,8 @@ class HelpScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Scrollable Column so the content fits on small screens.
+    // Scrollable layout ensures the content fits gracefully on small screens 
+    // or when the user has drastically scaled up their system font size.
     return Container(
       color: kBackground,
       child: SafeArea(
@@ -21,6 +22,7 @@ class HelpScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Page Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -144,6 +146,7 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
+// Interactive card that leverages the Text-to-Speech service to read instructions.
 class _TutorialCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -159,11 +162,13 @@ class _TutorialCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Listens to the global TTS state to dynamically change the Play/Stop icon 
+    // and prevent overlapping audio playbacks.
     return ValueListenableBuilder<bool>(
       valueListenable: TtsService().isSpeakingNotifier,
       builder: (context, isSpeaking, child) {
         
-        // Helper function to handle the toggle logic
+        // Helper function to handle the toggle logic for the audio tutorial
         void handleTap() async {
           if (isSpeaking) {
             await TtsService().stop();
@@ -214,7 +219,7 @@ class _TutorialCard extends StatelessWidget {
                     ]),
                   ),
 
-                  // Play icon
+                  // Play/Stop icon
                   IconButton(
                     onPressed: handleTap,
                     icon: Icon(isSpeaking ? Icons.stop_circle : Icons.play_circle_fill),
@@ -233,7 +238,7 @@ class _TutorialCard extends StatelessWidget {
 }
 
 /// Tip row used inside the single Quick Tips card.
-/// `boldParts` lists exact substrings in `text` that should be bolded.
+/// Automatically formats specific keywords in bold for better readability.
 class _TipRow extends StatelessWidget {
   final int number;
   final String text;
@@ -270,14 +275,16 @@ class _TipRow extends StatelessWidget {
   }
 }
 
-/// Build TextSpan chunks where `parts` (substrings) appear bolded in the order of earliest match.
-/// This function finds the earliest match of any boldPart and creates alternating normal/bold spans.
+/// Utility function to parse a raw string and convert it into a list of TextSpans.
+/// It searches the `text` for any matches in `parts` and applies a bold font weight 
+/// to the matched substrings, leaving the rest of the text normal.
 List<TextSpan> _buildSpans(String text, List<String> parts) {
   final spans = <TextSpan>[];
   int pos = 0;
   final lower = text.toLowerCase();
 
-  // defensive: sort parts by earliest index to avoid mismatches when multiple parts exist
+  // Iteratively scan the string from left to right to find the earliest match, 
+  // add normal text before it, then add the bold part, and continue until the end of the string.
   while (pos < text.length) {
     int bestIndex = -1;
     String? bestPart;
@@ -296,22 +303,22 @@ List<TextSpan> _buildSpans(String text, List<String> parts) {
       break;
     }
 
-    // text before the match
+    // Append the normal text that occurred before the match
     if (bestIndex > pos) {
       spans.add(TextSpan(text: text.substring(pos, bestIndex)));
     }
 
-    // matched bold part (use bold style)
+    // Append the matched keyword with a bold style
     spans.add(TextSpan(text: bestPart, style: const TextStyle(fontWeight: FontWeight.w700)));
 
-    // advance pos
+    // Advance the position pointer past the match
     pos = bestIndex + (bestPart?.length ?? 0);
   }
 
   return spans;
 }
 
-
+// Card widget used in the FAQ section to display a question and its answer in a visually distinct way.
 class _FAQCard extends StatelessWidget {
   final String question;
   final String answer;
@@ -340,6 +347,7 @@ class _FAQCard extends StatelessWidget {
   }
 }
 
+// Footer card displayed at the bottom of the Help screen, providing contact information for further assistance.
 class _NeedMoreHelpFooter extends StatelessWidget {
   const _NeedMoreHelpFooter();
 

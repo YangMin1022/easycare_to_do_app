@@ -7,10 +7,6 @@ import 'services/notification_service.dart';
 import 'dart:math';
 
 /// EditTaskScreen
-/// - Accepts an existing TaskItem
-/// - onSave: returns edited TaskItem
-/// - onCancel: optional
-/// - onDelete: optional
 class EditTaskScreen extends StatefulWidget {
   final TaskItem task;
   final Future<void> Function(TaskItem)? onSave;
@@ -46,11 +42,14 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
   void initState() {
     super.initState();
     final t = widget.task;
+    // Pre-fill controllers and state with the existing task data
     _titleCtrl = TextEditingController(text: t.title);
     _noteCtrl = TextEditingController(text: t.note.trim().isEmpty ? '' : t.note);
     _selectedDate = DateTime(t.due.year, t.due.month, t.due.day);
     _selectedTime = TimeOfDay(hour: t.due.hour, minute: t.due.minute);
     _selectedReminder = t.reminderBefore;
+    // Attach listeners so the UI rebuilds (evaluating _hasChanges) as the user types
+    // enable the Save button only when there are changes
     _titleCtrl.addListener(_onFieldChanged);
     _noteCtrl.addListener(_onFieldChanged);
   }
@@ -62,25 +61,29 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     super.dispose();
   }
 
-  // Track whether any field changed compared with original
+  // Helper to check if any field has changed compared to the original task data. 
+  // This is used to enable/disable the Save button and avoid unnecessary saves.
   bool get _hasChanges {
     final orig = widget.task;
     if (_titleCtrl.text.trim() != orig.title) return true;
     if ((_noteCtrl.text.trim()) != (orig.note.trim().isEmpty ? '' : orig.note)) return true;
     if (!_sameDate(_selectedDate, orig.due)) return true;
     if (!_sameTime(_selectedTime, orig.due)) return true;
+    // Compare durations safely by checking total seconds
     if ((_selectedReminder?.inSeconds ?? -1) != (orig.reminderBefore?.inSeconds ?? -1)) return true;
     return false;
   }
-
+  // This method is called whenever any of the input fields change, to trigger a UI update for the Save button state.
   void _onFieldChanged() {
     // setState only if UI needs updating (save button enabled)
     setState(() {});
   }
-
+  // Helper to check if two DateTime objects represent the exact same calendar day/same date.
   static bool _sameDate(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
+  // Helper to check if TimeOfDay matches DateTime time (ignores date & seconds)
   static bool _sameTime(TimeOfDay t, DateTime b) => t.hour == b.hour && t.minute == b.minute;
 
+  // UI Pickers and logic for Date, Time, and Reminder selection
   // Date Picker
   Future<void> _pickDate() async {
     final initial = _selectedDate;
@@ -100,6 +103,8 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     }
   }
 
+  // Time Picker
+  // Opens a Cupertino-style bottom sheet for selecting a TimeOfDay.
   Future<void> _pickTime() async {
     final now = DateTime.now();
     // Convert current selection to DateTime for the spinner
@@ -159,7 +164,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
       },
     );
   }
-
+  // Helper methods for quick date selection (Today/Tomorrow) and reminder presets
   void _setDateToday() {
     final now = DateTime.now();
     setState(() {
@@ -181,6 +186,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
   }
 
   //CUSTOM REMINDER LOGIC
+  // When user taps "Custom" reminder chip, show a dialog to input hours and minutes for the reminder duration.
   Future<void> _pickCustomReminder() async {
     final hoursCtrl = TextEditingController();
     final minsCtrl = TextEditingController();
@@ -229,13 +235,14 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     );
   }
 
+  // Formatting helpers for displaying selected date and time in the buttons
   String _formatDateLabel(DateTime d) {
     final months = [
       'January','February','March','April','May','June','July','August','September','October','November','December'
     ];
     return '${d.day.toString().padLeft(2, '0')} ${months[d.month - 1]} ${d.year}';
   }
-
+  // Formats TimeOfDay to a string like "2:30 PM"
   String _formatTimeLabel(TimeOfDay t) {
     final hour = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
     final min = t.minute.toString().padLeft(2, '0');
@@ -244,6 +251,8 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
   }
 
   // Save Logic
+  // When the user presses "Save", we need to:
+  // 1. Validate input (e.g., title is not empty)
   Future<void> _onSavePressed() async {
     if (!_hasChanges || _isSaving) return;
     if (_titleCtrl.text.trim().isEmpty) {
@@ -262,17 +271,20 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
         _selectedTime.minute,
       );
 
-      // 1. CANCEL OLD NOTIFICATION IF EXISTS
-      // We always cancel the old one to be safe, because the time or ID might change.
+      // 2. CLEANUP PREVIOUS NOTIFICATIONS IF EXISTS
+      // Crucial step: Because the due date or reminder might have changed, we must cancel 
+      // the existing alarms to prevent the user from receiving "ghost" notifications.
       if (widget.task.notificationId != null) {
         await NotificationService().cancelNotification(widget.task.notificationId!);
+        // Also cancel the reminder notification (base ID + 1) if it exists
         await NotificationService().cancelNotification(widget.task.notificationId! + 1);
       }
 
-      // 2. SCHEDULE NEW NOTIFICATION (If reminder is set)
+      // 3. SCHEDULE NEW NOTIFICATIONS
+      // Retain the original ID to keep things clean, or generate a new one if it didn't exist
       int baseNotificationId = widget.task.notificationId ?? Random().nextInt(50000000);
       
-      // ALWAYS schedule the notification for the exact Due Time
+      // Schedule the primary Due Time notification
       await NotificationService().scheduleReminder(
         id: baseNotificationId,
         title: "Task Due: ${_titleCtrl.text.trim()}",
@@ -295,7 +307,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
           payload: reminderNotificationId.toString(),
         );
       }
-      // 3. CREATE EDITED TASK
+      // 4. CREATE EDITED TASK
       final edited = widget.task.copyWith(
         title: _titleCtrl.text.trim(),
         note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
@@ -305,6 +317,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
         notificationId: baseNotificationId,
       );
 
+      // 5. CALLBACK TO SAVE CHANGES IN DB
       if (widget.onSave != null) {
         await widget.onSave!(edited);
       }
@@ -324,7 +337,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     if (widget.onCancel != null) widget.onCancel!();
     Navigator.of(context).pop();
   }
-
+  // Prompts for confirmation, cleans up notifications, and deletes the task.
   Future<void> _onDeletePressed() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -353,7 +366,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
       Navigator.of(context).pop(); // close screen after delete
     }
   }
-
+  // Helper to build the segmented buttons for quick date selection (Today/Tomorrow). Highlights the active selection.
   Widget _segmentedButton(String label, bool active, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
@@ -372,6 +385,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     );
   }
 
+  // Builds a chip for the predefined reminder durations (1 hour, 1 day, etc). Highlights if selected.
   Widget _reminderChip(String label, Duration dur) {
     final active = _selectedReminder == dur;
     return GestureDetector(
@@ -456,6 +470,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // The Save button should only be enabled if there are changes and we're not currently saving to prevent duplicate actions.
     final saveEnabled = _hasChanges && !_isSaving;
 
     return Scaffold(

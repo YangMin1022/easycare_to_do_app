@@ -17,7 +17,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  // TTS Service instance
+  // TTS Service instance for updating global speech parameters
   final TtsService _tts = TtsService();
 
   // TTS State (Default values, will be overwritten by loadSettings)
@@ -35,7 +35,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _checkNotificationPermissionsOnLoad();
   }
 
-  // Load saved preferences from the TTS Service
+  // Initializes the TTS service and loads saved user preferences into local state.
   Future<void> _loadSettings() async {
     await _tts.init(); // Ensure service is ready
     // Load the saved notification preference
@@ -49,7 +49,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  // Checks OS-level permission when the screen loads
+  // Silently checks the device OS to see if the user has revoked notification 
+  // permissions outside of the app (e.g., via the phone's system settings).
   Future<void> _checkNotificationPermissionsOnLoad() async {
     bool granted = await NotificationService().checkPermissions(); 
     
@@ -62,13 +63,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  // Handles the switch logic
+  // Master handler for the Notifications toggle switch.
+  // This method doesn't just change a boolean; it actively schedules or cancels
+  // all OS-level alarms based on the user's choice.
   Future<void> _handleSwitchToggled(bool value) async {
     if (value) {
-      // Toggled ON: Request OS permission using your existing service method
+      // Toggled ON: Explicitly request OS permission if not already granted
       bool granted = await NotificationService().requestPermissions(context);
       
       if (granted) {
+        // Permission granted: Enable notifications and schedule all active tasks
         await SettingsService().setNotificationsEnabled(true); // SAVE STATE
         
         // Fetch all tasks from DB and restore their notifications
@@ -95,6 +99,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } else {
       // Toggled OFF: Disable locally
       await SettingsService().setNotificationsEnabled(false); // SAVE STATE
+      // Wipe the OS-level alarm queue so nothing fires while notifications are "Off"
       await NotificationService().cancelAllNotifications();   // CANCEL ACTIVE ALERTS
       setState(() {
         _notificationsEnabled = false;
@@ -103,6 +108,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   // Notification Test Functions
+  // Schedules a local notification 5 seconds into the future to verify
+  // the background timezone/scheduling logic is working.
   void _testScheduledNotification() async {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Scheduling for 5 seconds... wait for it!')));
     
@@ -117,6 +124,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
   
+  // Instantly fires a local notification to verify basic OS permissions.
   void _sendTestNotification() async{
     // 1. Trigger the actual notification
     await NotificationService().showInstantNotification(
@@ -208,6 +216,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // Text-to-Speech section
                 const _SectionTitle(title: 'Text-to-Speech', subtitle: null),
                 const SizedBox(height: 8),
+
                 // Voice Speed Slider
                 const Text('Voice Speed', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
@@ -225,6 +234,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   valueLabel: '${_ttsSpeed.toStringAsFixed(1)}x',
                 ),
                 const SizedBox(height: 12),
+
                 // Voice Volume Slider
                 const Text('Voice Volume', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
@@ -268,6 +278,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
+
+                // Test Buttons (Disabled if notifications are turned off)
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(

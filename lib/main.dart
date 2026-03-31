@@ -10,14 +10,14 @@ import 'settings.dart';
 import 'services/tts_service.dart';
 import 'services/tts_helpers.dart';
 import 'services/settings_service.dart';
-import 'package:timezone/data/latest.dart' as tz; // <--- 1. ADD IMPORT
+import 'package:timezone/data/latest.dart' as tz; // Initialize timezone data
 import 'package:timezone/timezone.dart' as tzi;
 import 'services/notification_service.dart';
 import 'dart:math';
 
 void main() async{
   WidgetsFlutterBinding.ensureInitialized();
-  
+  // Initialize timezone package (critical for accurate local notifications)
   tz.initializeTimeZones();
   // Initialize Notifications
   await NotificationService().init();
@@ -41,7 +41,8 @@ class EasyCareApp extends StatelessWidget {
             scaffoldBackgroundColor: Colors.white,
             useMaterial3: false,
           ),
-          // Apply the text scale globally to every screen
+          // Apply the text scale(font size) globally to every screen based on the user's selection in Settings
+          // Wrap the entire app in a MediaQuery to globally override the text scale(font size).
           builder: (context, child) {
             return MediaQuery(
               data: MediaQuery.of(context).copyWith(
@@ -85,12 +86,14 @@ class _OnboardingThenHomeState extends State<OnboardingThenHome> {
   final PageController _controller = PageController();
   int _pageIndex = 0;
 
+  /// Skips onboarding and navigates to the Home screen
   void _goToHome() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const TaskListHome()),
     );
   }
 
+  /// Advances to the next onboarding page, or finishes if at the end
   void _nextPage() {
     final next = _pageIndex + 1;
     if (next < 2) {
@@ -113,6 +116,7 @@ class _OnboardingThenHomeState extends State<OnboardingThenHome> {
   ),
   child: const Text('Skip', style: TextStyle(color: Colors.black87, fontSize: 24, fontWeight: FontWeight.w500)));
 
+  /// Builds the dot indicators at the bottom of the onboarding screen
   Widget _buildPageIndicator() {
     Widget dot(bool active) => Container(
           width: active ? 18 : 10,
@@ -172,6 +176,7 @@ class _OnboardingThenHomeState extends State<OnboardingThenHome> {
   }
 }
 
+/// Reusable layout for individual onboarding pages
 class SimpleOnboardingPage extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -202,6 +207,7 @@ class SimpleOnboardingPage extends StatelessWidget {
 
 enum SortBy { due, title }
 
+/// Home screen displaying the user's tasks.
 class TaskListHome extends StatefulWidget {
   const TaskListHome({super.key});
   @override
@@ -214,7 +220,7 @@ class _TaskListHomeState extends State<TaskListHome> {
   
   bool _isNavigatingToAdd = false;
   SortBy _sortBy = SortBy.due;
-  int _navIndex = 0;
+  int _navIndex = 0; // Tracks bottom navigation state
 
   @override
   void initState() {
@@ -224,12 +230,14 @@ class _TaskListHomeState extends State<TaskListHome> {
     _runStartupTasks();
   }
 
+  /// Performs notification cleanup operations on app launch
   Future<void> _runStartupTasks() async {
     try {
       // Fetch the current snapshot of all tasks from the database stream
       final allTasks = await _db.watchAllTaskItems().first;
       
       // Pass them to our new NotificationService cleanup method
+      // Clean up orphaned or outdated OS notifications
       await NotificationService().cleanUpOutdatedNotifications(allTasks);
     } catch (e) {
       debugPrint('Failed to clean up notifications on startup: $e');
@@ -243,21 +251,17 @@ class _TaskListHomeState extends State<TaskListHome> {
   }
 
   void _onSearchChanged() {
-    setState(() {}); // rebuild to filter
+    setState(() {}); // Rebuild UI to apply search filter
   }
 
+  /// Filters tasks locally based on the search input
   List<TaskItem> _filterTasks(List<TaskItem> tasks) {
     final q = _searchCtrl.text.trim().toLowerCase();
     if (q.isEmpty) return tasks;
     return tasks.where((t) => t.title.toLowerCase().contains(q) || t.note.toLowerCase().contains(q)).toList();
   }
 
-  // List<TaskItem> get _visibleTasks {
-  //   final q = _searchCtrl.text.trim().toLowerCase();
-  //   if (q.isEmpty) return _tasks;
-  //   return _tasks.where((t) => t.title.toLowerCase().contains(q) || t.note.toLowerCase().contains(q)).toList();
-  // }
-
+  /// Toggles the completion status of a task and updates the database
   void _toggleComplete(TaskItem t) async {
     // Optimistic update handled by Stream, but we call DB here
     await _db.setTaskCompleted(t.id, !t.completed);
@@ -268,8 +272,9 @@ class _TaskListHomeState extends State<TaskListHome> {
     }
   }
 
+  /// Navigates to Add Task Page and handles the returned new task
   Future<void> _openAddTask() async {
-    if (_isNavigatingToAdd) return; // guard: already navigating
+    if (_isNavigatingToAdd) return; // guard: already navigating/prevent double taps
     _isNavigatingToAdd = true;
     try {
       final TaskItem? newTask = await Navigator.push<TaskItem>(
@@ -280,13 +285,13 @@ class _TaskListHomeState extends State<TaskListHome> {
       if (!mounted) return;
       
       if (newTask != null) {
-        // Insert into DB. The DB generates a new ID, ignoring the temporary one from AddTaskPage.
+        // Insert into DB. The DB automatically generates the real unique ID.
         await _db.insertTaskItem(newTask);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Task added')));
       }
     } finally {
-      // ensure flag resets even if user dismisses the route with back/swipe
+      // ensure navigation guard resets even if user dismisses the route with back/swipe
       if (mounted) {
         setState(() {
           _isNavigatingToAdd = false;
@@ -297,6 +302,7 @@ class _TaskListHomeState extends State<TaskListHome> {
     }
   }
 
+  /// Navigates to Edit Task Page and handles DB updates
   Future<void> _openEditTask(TaskItem t) async {
     await Navigator.push(
       context,
@@ -332,7 +338,7 @@ class _TaskListHomeState extends State<TaskListHome> {
           // Handle 'Mark Done' from the details page
           onMarkDone: (task) {
              _toggleComplete(task);
-             Navigator.pop(context); // Optional: close details page after action
+             Navigator.pop(context); // close details page after action
           },
           // Handle 'Delete' from the details page
           onDelete: (task) async {
@@ -365,12 +371,14 @@ class _TaskListHomeState extends State<TaskListHome> {
     });
   }
 
+  /// Helper to format Dates nicely for UI list
   String _formatDate(DateTime d) {
     // Simple dd/Mon/yyyy format
     final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     return '${d.day.toString().padLeft(2,'0')}/${months[d.month-1]}/${d.year}';
   }
 
+  /// Helper to format Durations into readable text (e.g., "2 hours")
   String _reminderLabel(Duration? dur) {
     if (dur == null) return '';
     if (dur.inDays >= 1) {
@@ -382,6 +390,7 @@ class _TaskListHomeState extends State<TaskListHome> {
     }
   }
 
+  /// Builds the toggle controls for sorting tasks
   Widget _buildSortControl() {
     return Row(children: [
       const Icon(Icons.tune, size: 20, color: Colors.black54),
@@ -415,10 +424,10 @@ class _TaskListHomeState extends State<TaskListHome> {
     ]);
   }
 
+  /// Builds the individual Card widget for a TaskItem in the list
   Widget _buildTaskCard(TaskItem t) {
-    // final badgeText = _reminderLabel(t.reminderBefore);
     String badgeText = '';
-    
+    // Prioritize showing absolute reminder time if available
     if (t.reminderTime != null) {
       // Format it nicely: "22/1 14:30"
       final dt = t.reminderTime!;
@@ -462,7 +471,7 @@ class _TaskListHomeState extends State<TaskListHome> {
                   Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Expanded(child: Text(t.title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, decoration: t.completed ? TextDecoration.lineThrough : null))),
                     const SizedBox(width: 8),
-                    // edit icon
+                    // edit icon in the card
                     IconButton(
                       onPressed: () => _openEditTask(t),
                       icon: const Icon(Icons.edit, color: _Design.primary),
@@ -471,7 +480,7 @@ class _TaskListHomeState extends State<TaskListHome> {
                   const SizedBox(height: 6),
                   Text(t.note, style: const TextStyle(fontSize: 16, color: Colors.black54)),
                   const SizedBox(height: 10),
-                  // REPLACED ROW WITH WRAP HERE
+                  // Bottom Row: Date & Reminder Badge
                   Wrap(
                     crossAxisAlignment: WrapCrossAlignment.center,
                     spacing: 10.0,    // Horizontal gap between the date and the badge
@@ -516,6 +525,7 @@ class _TaskListHomeState extends State<TaskListHome> {
     );
   }
 
+  /// Builds the text input for local search filtering
   Widget _buildSearchBar() {
     return Container(
       margin: const EdgeInsets.only(top: 8, bottom: 12),
@@ -536,6 +546,7 @@ class _TaskListHomeState extends State<TaskListHome> {
     );
   }
 
+  /// Main body builder for the TaskListHome screen
   Widget _buildBody() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: _Design.horizontalPadding),
@@ -543,6 +554,7 @@ class _TaskListHomeState extends State<TaskListHome> {
         const SizedBox(height: 40),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text("Today's Tasks", style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800)),
+          // Text-to-Speech Control Button
           ValueListenableBuilder<bool>(
             valueListenable: TtsService().isSpeakingNotifier,
             builder: (context, isSpeaking, child) {
@@ -561,7 +573,7 @@ class _TaskListHomeState extends State<TaskListHome> {
                     ScaffoldMessenger.of(context).hideCurrentSnackBar();
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reading stopped.')),);
                   } else {
-                    // Logic to START
+                    // Logic to START - Fetch tasks from DB explicitly for reading, ensuring we get the latest data and sorting based on current UI state
                     final allTasks = await _db.watchAllTaskItems(sortByDue: _sortBy == SortBy.due).first;
 
                     // Check mounted before using context after async gap
@@ -578,7 +590,7 @@ class _TaskListHomeState extends State<TaskListHome> {
                     }
                   }
                 },
-                // CHANGE ICON BASED ON STATE
+                // CHANGE Text-To-Speech ICON BASED ON STATE
                 icon: Icon(
                   isSpeaking ? Icons.stop_circle_outlined : Icons.volume_up, 
                   color: isSpeaking ? Colors.red : _Design.primary, // Make stop button red
@@ -589,7 +601,7 @@ class _TaskListHomeState extends State<TaskListHome> {
             },
           ),
         ]),
-        // Example AppBar action (add to AppBar actions list in TaskListHome)
+        // Debugging Action (Hidden utility for devs)
         IconButton(
           icon: const Icon(Icons.bug_report),
           tooltip: 'Debug notifications',
@@ -606,7 +618,7 @@ class _TaskListHomeState extends State<TaskListHome> {
         const SizedBox(height: 14),
         const Text('To Do', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
-        // Expanded ListView
+        // Task List renders here, wrapped in StreamBuilder to listen to DB changes
         Expanded(
           child: StreamBuilder<List<TaskItem>>(
             // Listen to the database stream. It handles sorting by due/title internally based on the arg.
@@ -632,7 +644,7 @@ class _TaskListHomeState extends State<TaskListHome> {
 
               return ListView.builder(
                 padding: const EdgeInsets.only(bottom: 120, top: 4),
-                // Add an extra item for the "Completed" header if there are completed tasks
+                // +1 for the "Completed" header text if we have completed tasks
                 itemCount: pendingTasks.length + (completedTasks.isNotEmpty ? 1 + completedTasks.length : 0),
                 itemBuilder: (_, index) {
                   // 1. Render Pending Tasks
@@ -663,6 +675,7 @@ class _TaskListHomeState extends State<TaskListHome> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Swap out the main view based on bottom nav selection
       body: _navIndex == 0 ? _buildBody() : _navIndex == 1 ? const HelpScreen() : _navIndex == 2 ? const SettingsScreen() : Container(),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _navIndex,
@@ -681,7 +694,7 @@ class _TaskListHomeState extends State<TaskListHome> {
       // Large "Add Task" centrally placed above bottom navigation
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: _navIndex != 0 
-        ? null
+        ? null // Hide FAB on Help and Settings screens
         : Padding(
           padding: const EdgeInsets.only(bottom: 80),
           child: ElevatedButton.icon(

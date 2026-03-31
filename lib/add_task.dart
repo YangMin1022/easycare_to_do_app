@@ -8,11 +8,13 @@ import 'services/notification_service.dart';
 import 'services/speech_service.dart';
 import 'utils/smart_parser.dart';
 import 'task_item.dart';
-/// Replace or expand with domain model / DB ID later.
-/// AddTaskPage - supports Voice and Type modes.
+/// AddTaskPage provides a dual-interface (Voice and Type modes) for creating tasks.
+/// It integrates directly with the SmartParser NLP engine to auto-fill dates, times,
+/// and reminders based on conversational user input.
+
 /// Usage:
-/// Navigator.push`TaskItem`(context, MaterialPageRoute(builder: (_) => AddTaskPage()))
-/// The pushed Future completes with TaskItem when Save pressed, or null if Cancelled.
+/// Navigator.push'TaskItem'(context, MaterialPageRoute(builder: (_) => AddTaskPage()))
+/// The Future completes with a new TaskItem on save, or null on cancel.
 class AddTaskPage extends StatefulWidget {
   const AddTaskPage({super.key});
 
@@ -29,7 +31,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
   AddMode _mode = AddMode.voice;
 
-  // Voice mode
+  // Voice mode state
   String _transcript = '';
   bool _isListening = false;
   bool _speechEnabled = false;
@@ -38,10 +40,15 @@ class _AddTaskPageState extends State<AddTaskPage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
   late TextEditingController _transcriptController;
+  // NOTE: _selectedTime is explicitly nullable. This is critical for supporting 
+  // "time-less" tasks (e.g., "Remind me to buy milk") where a specific event time 
+  // does not exist, but a reminder duration might.
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   Duration? _selectedReminder; // e.g., Duration(hours:1)
+  // Tracks if the reminder is relative to now ("in 2 hours") or an event ("2 hours before")
   ReminderType? _selectedReminderType;
+  // Helper to check if two DateTime objects represent the exact same calendar day.
   bool _sameDate(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
@@ -55,27 +62,24 @@ class _AddTaskPageState extends State<AddTaskPage> {
   void initState() {
     super.initState();
     _initServices();
-    // default due date = today at 09:00
+    // Default setup: Date defaults to today, but time remains null to avoid
+    // instantly creating "overdue" tasks if the user is just creating a quick note.
     final now = DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
     _selectedTime = null;
+    // Standard fallback reminder is 1 hour
     _selectedReminder = const Duration(hours: 1);
     _transcriptController = TextEditingController(text: _transcript);
-
-    // Check/Request permissions on load
-    // WidgetsBinding.instance.addPostFrameCallback((_) {
-    //   NotificationService().requestPermissions(context);
-    // });
   }
 
-  /// Initialize all external services
+  /// Initialize all external services (e.g., Microphone, Notifications) and request permissions as needed.
   Future<void> _initServices() async {
-    // 1. Notifications
+    // 1. Notification Service: Request permissions immediately so we can schedule reminders without friction later
     WidgetsBinding.instance.addPostFrameCallback((_) {
       NotificationService().requestPermissions(context);
     });
 
-    // 2. Speech Service
+    // 2. Speech Service Initialization: Set up the Speech-to-Text engine and listen to hardware state changes
     _speechEnabled = await SpeechService().init(
       onStatus: (status) {
         // Auto-update UI state based on engine status
@@ -103,7 +107,8 @@ class _AddTaskPageState extends State<AddTaskPage> {
     super.dispose();
   }
 
-  /// Toggle Dictation using the Service
+  /// Toggles the voice dictation service. Once stopped, it automatically feeds the
+  /// captured text into the NLP engine (_applySmartParsing).
   Future<void> _startOrStopDictation() async {
     if (!_speechEnabled) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -115,17 +120,13 @@ class _AddTaskPageState extends State<AddTaskPage> {
     if (_isListening) {
       await SpeechService().stop();
       setState(() => _isListening = false);
-      // --- NEW: Apply Smart Parsing when stopping ---
+      // Apply Smart Parsing when stopping the dictation, as this indicates the user has finished speaking their command.
+      // Automatically process the text once the user stops speaking to extract structured data (date, time, reminder) and pre-fill the form.
       _applySmartParsing(_transcript);
     } else {
-      // Clear previous transcript if you want a fresh start
-      // setState(() => _transcript = ''); 
       // START LISTENING
       setState(() => _isListening = true);
       await SpeechService().startListening(
-        // onResult: (text) {
-        //   setState(() => _transcript = text);
-        // },
         onResult: (text) {
           setState(() {
             _transcript = text;
@@ -133,7 +134,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
             // Update the controller so the text appears in the box
             _transcriptController.text = text;
             
-            // OPTIONAL: Move cursor to the end so user can type immediately after
+            // Keep the cursor at the end of the text for easy manual editing
             _transcriptController.selection = TextSelection.fromPosition(
               TextPosition(offset: _transcriptController.text.length)
             );
@@ -144,37 +145,40 @@ class _AddTaskPageState extends State<AddTaskPage> {
     }
   }
 
-  /// Helper to apply parsed data to UI controllers
+  /// Feeds the raw user input into the custom NLP SmartParser.
+  /// Updates the UI controllers and state variables with the extracted data.
   void _applySmartParsing(String rawText) {
     if (rawText.trim().isEmpty) return;
 
     final data = SmartParser.parse(rawText);
 
     setState(() {
-      // --- FIX: Provide a default title if the parser stripped all the text! ---
+      // Provide a default title if the parser stripped all the text!
+      // (e.g., User just says "Remind me in 2 hours" without a task name).
       String finalTitle = data.title.trim().isEmpty ? "Quick Reminder" : data.title;
       // 1. Auto-fill Title
       _transcript = finalTitle; // Update the transcript view
       _titleController.text = finalTitle; // Also sync Type mode controller just in case
 
-      // 2. Auto-set Date (if found)
+      // Apply NLP extracted Date, Time, and Reminder objects
+      // 2. Set Date (if found)
       if (data.date != null) {
         _selectedDate = data.date;
       }
 
-      // 3. Auto-set Time (if found)
+      // 3. Set Time (if found)
       if (data.time != null) {
         _selectedTime = data.time;
       }
       
-      // 4. Auto-set Reminder (if found)
+      // 4. Set Reminder (if found)
       if (data.reminder != null) {
          _selectedReminder = data.reminder;
          _selectedReminderType = data.reminderType;
       }
     });
 
-    // Optional feedback
+    // Provide immediate visual feedback that AI parsing occurred and what fields were filled.
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Smart set: ${data.date != null ? "Date updated. " : ""}${data.time != null ? "Time updated." : ""}'),
@@ -191,6 +195,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     try {
       String title = '';
       String note = '';
+      // --- Validate Input based on current Mode ---
       if (_mode == AddMode.voice) {
         if (_transcript.trim().isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please provide a transcript or use Type mode.')));
@@ -217,10 +222,11 @@ class _AddTaskPageState extends State<AddTaskPage> {
       bool hasExplicitTime = _selectedTime != null;
 
       if (hasExplicitTime) {
-        // SCENARIO A: User provided a time (e.g., "Meeting at 9am")
+        // SCENARIO A: User provided a specific event time (e.g., "Meeting at 9am")
         final d = _selectedDate ?? now;
         finalDue = DateTime(d.year, d.month, d.day, _selectedTime!.hour, _selectedTime!.minute);
 
+        // Schedule the alarm for the exact due time
         await NotificationService().scheduleReminder(
           id: baseNotificationId,
           title: "Task Due: $title",
@@ -229,6 +235,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
           payload: baseNotificationId.toString(),
         );
 
+        // Calculate a secondary reminder alarm if requested
         if (_selectedReminder != null) {
           if (_selectedReminderType == ReminderType.fromNow) {
             reminderTime = now.add(_selectedReminder!);
@@ -243,14 +250,17 @@ class _AddTaskPageState extends State<AddTaskPage> {
             finalDue = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, 9, 0);
             reminderTime = finalDue;
         } else if (_selectedReminder != null) {
+          // Dynamic NLP constraint (e.g., "in 1 hour"). Add to current time.
           reminderTime = now.add(_selectedReminder!);
           finalDue = reminderTime; 
         } else {
+          // Absolute fallback: Due at the very end of the selected day
           final d = _selectedDate ?? now;
           finalDue = DateTime(d.year, d.month, d.day, 23, 59); 
         }
       }
 
+      // --- Finalize Secondary Notification ---
       if (reminderTime != null) {
         int reminderNotificationId = baseNotificationId + 1;
         await NotificationService().scheduleReminder(
@@ -263,12 +273,12 @@ class _AddTaskPageState extends State<AddTaskPage> {
       }
       
       //Task Item
+      // --- Construct DB Model & Pop ---
       final newId = DateTime.now().millisecondsSinceEpoch.toString();
       final task = TaskItem(
         id: newId,
         title: title,
         note: note,
-        // note: _noteController.text.trim().isEmpty ? '' : _noteController.text.trim(),
         due: finalDue,
         reminderBefore: _selectedReminder,
         reminderTime: reminderTime,
@@ -304,6 +314,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     }
   }
 
+  // UI Pickers and Helpers Below (Date, Time, Reminder)
   // Built-in fallback pickers.
   Future<DateTime?> _showDatePickerFallback(BuildContext context, DateTime initialDate) async {
     final first = DateTime.now();
@@ -319,7 +330,8 @@ class _AddTaskPageState extends State<AddTaskPage> {
       setState(() => _selectedDate = picked);
     }
   }
-
+  
+  /// Opens a Cupertino-style bottom sheet for selecting a TimeOfDay.
   Future<void> _pickTime() async {
     // 1. Prepare initial DateTime based on current selection
     final now = DateTime.now();
@@ -400,6 +412,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     return '$hour:${t.minute.toString().padLeft(2, '0')} $suffix';
   }
 
+  // Builds the toggle for switching between voice and text input modes
   Widget _buildModeToggle() {
     return Container(
       padding: const EdgeInsets.all(4),
@@ -413,7 +426,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
       ),
     );
   }
-
+  // Helper to build each mode toggle button with active/inactive styling
   Widget _modeButton(AddMode mode, IconData icon, String label) {
     final active = _mode == mode;
     return GestureDetector(
@@ -433,6 +446,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     );
   }
 
+  // The main body of the AddTaskPage, which switches between Voice and Type views based on the selected mode.
   Widget _voiceView() {
     return Expanded(
       child: Center( // Keeps content vertically centered when there's extra space
@@ -493,6 +507,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     );
   }
 
+  // The Type mode view with all the form fields for manual input.
   Widget _typeView() {
     return Expanded(
       child: SingleChildScrollView(
@@ -622,6 +637,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     );
   }
 
+  // Helper to build the date option buttons (Today, Tomorrow)
   Widget _dateOptionButton(String label, VoidCallback onTap, {required bool selected}) {
     return GestureDetector(
       onTap: onTap,
@@ -633,6 +649,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     );
   }
 
+  // Helper to build the standard reminder option chips (1 Hour, 1 Day, etc.)
   Widget _reminderChip(String label, Duration dur) {
     final isSelected = _selectedReminder == dur;
     return GestureDetector(
@@ -645,6 +662,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     );
   }
 
+  // Builds a dynamic chip that displays customized duration data if standard presets are not used.
   // 1. The Widget for the Custom Chip
   Widget _customReminderChip() {
     // Check if the current selection is one of the standard presets
@@ -698,6 +716,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     );
   }
 
+  // Helper to open a dialog for picking a custom reminder duration (hours and minutes).
   // 2. The Dialog Logic to pick Hours/Minutes
   Future<void> _pickCustomReminder() async {
     final hoursCtrl = TextEditingController();
@@ -779,6 +798,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Dynamic validation: Enable save button only if a valid title/transcript exists
     final isSaveEnabled = ((_mode == AddMode.voice && _transcript.trim().isNotEmpty) || (_mode == AddMode.type && _titleController.text.trim().isNotEmpty)) && !_isSaving;
 
     return Scaffold(
@@ -795,7 +815,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
           children: [
             const SizedBox(height: 8),
             _buildModeToggle(),
-            // main content area
+            // main content area/form fields switch based on mode
             if (_mode == AddMode.voice) _voiceView() else _typeView(),
 
             // Bottom action buttons: Save and Cancel
