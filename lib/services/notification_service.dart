@@ -10,6 +10,10 @@ import 'settings_service.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
 
+// This service is responsible for requesting OS permissions, accurately calculating 
+// timezone-aware firing times, and managing the queue of scheduled alarms. It includes 
+// state-syncing logic to prevent "ghost notifications" (alarms that ring for 
+// tasks that were already deleted).
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
@@ -23,7 +27,7 @@ class NotificationService {
   /// Initialize the notification system
   Future<void> init() async {
     if (_isInitialized) return;
-
+    // Initialize timezone data and set local timezone
     tz_data.initializeTimeZones();
 
     try {
@@ -33,10 +37,10 @@ class NotificationService {
       debugPrint("Error setting location: $e");
       tz.setLocalLocation(tz.getLocation('UTC'));
     }
-
+    // Configure Android specific settings (App notification icon)
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('ic_notification');
-
+    // Configure iOS specific settings (requesting permissions, set false cause don't have IOS support yet)
     const DarwinInitializationSettings initializationSettingsDarwin =
         DarwinInitializationSettings(
       requestSoundPermission: false,
@@ -48,17 +52,18 @@ class NotificationService {
       android: initializationSettingsAndroid,
       iOS: initializationSettingsDarwin,
     );
-
+    // Initialize the plugin with settings and a callback for when notifications are tapped
     await _flutterLocalNotificationsPlugin.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
+        // Handle notification tap (open app)
         debugPrint("Notification clicked with payload: ${response.payload}");
       },
     );
 
     _isInitialized = true;
   }
-
+  // Requests necessary permissions on Android 13+ for notifications and exact alarms.
   Future<bool> requestPermissions(BuildContext context) async {
     if (Platform.isAndroid) {
       final androidImplementation = _flutterLocalNotificationsPlugin
@@ -75,7 +80,7 @@ class NotificationService {
     }
     return true;
   }
-
+ // Checks if the app has the necessary permissions to schedule notifications.
   Future<bool> checkPermissions() async {
     if (Platform.isAndroid) {
       final androidImplementation = _flutterLocalNotificationsPlugin
@@ -233,7 +238,7 @@ class NotificationService {
       debugPrint('Error fetching pending notifications: $e');
     }
   }
-
+  // For testing/demo: shows an instant notification (not scheduled) to verify the system is working.
   Future<void> showInstantNotification(
       {required String title, required String body}) async {
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
@@ -252,11 +257,11 @@ class NotificationService {
       platformDetails,
     );
   }
-
+  // Cancels a specific notification by ID.
   Future<void> cancelNotification(int id) async {
     await _flutterLocalNotificationsPlugin.cancel(id);
   }
-
+  // Cancels all notifications
   Future<void> cancelAllNotifications() async {
     await _flutterLocalNotificationsPlugin.cancelAll();
   }
